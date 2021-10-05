@@ -102,7 +102,7 @@ solve_ga <- function(instance, centroids) {
   }
   ga_model <- GA::ga(
     type="binary", fitness=eval_func, nBits=centroids$no_of_centroids,
-    popSize=100, pmutation=0.1, maxiter=100, parallel = TRUE
+    popSize=100, pmutation=0.1, maxiter=5, parallel = FALSE
   )
   return(list(
     "ga" = ga_model, 
@@ -113,6 +113,7 @@ solve_ga <- function(instance, centroids) {
 plot_2d <- function(instance, centroids, solution, type) {
   point_plot <- ggplot(instance$data) +
     geom_point(aes(x,y)) +
+    # geom_text(aes(x,y,label=`Demand point id`)) +
     theme_void()
   
   if (type == "point") {
@@ -203,7 +204,7 @@ plot_2d <- function(instance, centroids, solution, type) {
   }
 }
 
-# # TEST
+# TEST
 # instance = generate_2d_instance(
 #   no_of_points = 100,
 #   interval = c("min" = -10, "max" = 10)

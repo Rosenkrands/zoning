@@ -9,6 +9,7 @@ ui <- fluidPage(
       p("In this simple example we represent a solution as a bit string, for example $$ (1,0,0,0,0,0,0,1,0)$$ that corresponds to a 3 by 3 grid where centroids 1 and 8 is used."),
       p("Then for each demand point we assign it to the closest centroid point."),
       p("Different types of plots can be chosen for both the top and bottom plot, using the dropdowns below."),
+      p("For the plots to update expect a little waiting time as a Genetic Algorithm is running in the background."),
       sliderInput(inputId = "no_of_points",
                   label = "Choose number of demand points",
                   value = 80, min = 20, max = 100),
