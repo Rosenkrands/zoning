@@ -84,7 +84,8 @@ solve_ga <- function(instance, centroids) {
   }
   
   eval_func <- function(bitstring) {
-    centroids_used <- bit_to_cent(bitstring)
+      if (sum(bitstring) > 5) return(-Inf)
+      centroids_used <- bit_to_cent(bitstring)
     
     # result <- centroids$distances %>%
     #   filter(`Centroid id` %in% centroids_used$`Centroid id`) %>%
@@ -118,7 +119,7 @@ solve_ga <- function(instance, centroids) {
   }
   ga_model <- GA::ga(
     type="binary", fitness=eval_func, nBits=centroids$no_of_centroids,
-    popSize=100, pmutation=0.1, maxiter=50, parallel = TRUE
+    popSize=100, pmutation=0.1, maxiter=100, parallel = TRUE
   )
   return(list(
     "ga" = ga_model, 
@@ -237,3 +238,4 @@ solution <- solve_ga(instance, centroids)
 plot_2d(instance, centroids, solution, type = "chosen")
 plot_2d(instance, centroids, solution, type = "group")
 plot_2d(instance, centroids, solution, type = "voronoi")
+
