@@ -84,7 +84,7 @@ solve_ga <- function(instance, centroids) {
   }
   
   eval_func <- function(bitstring) {
-      if (sum(bitstring) > 5) return(-Inf)
+      #if (sum(bitstring) > 5 | sum(bitstring) < 1) return(-Inf)
       centroids_used <- bit_to_cent(bitstring)
     
     # result <- centroids$distances %>%
@@ -102,7 +102,11 @@ solve_ga <- function(instance, centroids) {
     # return(-result$MARV)
     
     # Assume constant speed so time and distance are interchangable
+    # Fixed service time per delivery
     tau <- 1
+    # Punishment for unwanted centroids
+    len <- sum(bitstring) - min(5, sum(bitstring))
+    # Computation of objective value
     result <- centroids$distances %>%
         filter(`Centroid id` %in% centroids_used$`Centroid id`) %>%
         group_by(`Demand point id`) %>%
@@ -114,12 +118,12 @@ solve_ga <- function(instance, centroids) {
         ) %>%
         group_by(`Centroid id`) %>%
         summarise(`Operation time` = sum(`Arrival rate` * (Distance + tau))) %>%
-        summarise(TOT = sum(`Operation time`))
+        summarise(TOT = sum(`Operation time`) + len*100)
     return(-result$TOT)
   }
   ga_model <- GA::ga(
     type="binary", fitness=eval_func, nBits=centroids$no_of_centroids,
-    popSize=100, pmutation=0.1, maxiter=100, parallel = TRUE
+    popSize=100, pmutation=0.1, maxiter=200, parallel = TRUE, monitor = TRUE
   )
   return(list(
     "ga" = ga_model, 
@@ -229,7 +233,7 @@ instance = generate_2d_instance(
 
 plot_2d(instance, centroids, solution, type = "point")
 
-centroids = grid_centroids(instance, dimension = 5)
+centroids = grid_centroids(instance, dimension = 10)
 
 plot_2d(instance, centroids, solution, type = "centroid")
 
@@ -239,3 +243,5 @@ plot_2d(instance, centroids, solution, type = "chosen")
 plot_2d(instance, centroids, solution, type = "group")
 plot_2d(instance, centroids, solution, type = "voronoi")
 
+# 100 iterations seems to be enough for it to get better for higher resolution, even though it start higher (more initial points)
+# Dimension 10 or more requires more than 100 iterations and the initialisation time is still high.
