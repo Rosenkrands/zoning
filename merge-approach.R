@@ -144,20 +144,21 @@ voronoi_merge <- function(
         
         dist_calc <- lapply(
           split(nbors, 1:nrow(nbors)),
-          function (x) {
+          function (arg) {
             result <- zones %>% 
               filter(`Zone id` == i) %>%
               left_join(
                 instance$data %>% select(`Demand point id`, x, y),
                 by = "Demand point id"
               ) %>%
-              bind_rows(x) %>%
-              select(x,y) %>%
-              t()
-            distance <- euclid_norm(result[,1] - result[,2])
+              rowwise() %>%
+              mutate(distance = euclid_norm(c(x - arg$x, y - arg$y))) %>%
+              ungroup() %>%
+              filter(distance == min(distance)) %>%
+              filter(row_number() == 1)
             return(
               tibble(`Demand point id` = x$`Demand point id`, 
-                     distance = distance)
+                     distance = result$distance)
             )
           }
         )
@@ -180,8 +181,8 @@ voronoi_merge <- function(
 }
 
 instance <- generate_2d_instance(no_of_points = 100)
-rslt <- voronoi_merge(instance, num_zones = 5, method = "distance")
-plot_vor(zones = rslt$zones)
+# rslt <- voronoi_merge(instance, num_zones = 5, method = "distance")
+# plot_vor(zones = rslt$zones)
 
 animation::saveGIF(
   voronoi_merge(instance, num_zones = 5, method = "distance", animate = T),
