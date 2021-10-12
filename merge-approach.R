@@ -5,16 +5,22 @@ library(igraph)
 
 # plotting function to use for showcasing solution
 plot_vor <- function(zones) {
-  ggplot(instance$data) +
-    geom_voronoi(data = instance$data %>% 
-                   left_join(zones, by = "Demand point id"), 
-                 aes(x,y,fill=`Zone id`)) +
-    geom_text(aes(x,y,label=`Demand point id`)) +
+  ggplot(instance$data %>% 
+           left_join(zones, by = "Demand point id")) +
+    geom_voronoi(aes(x,y,fill=`Zone id`),
+                 alpha = .25) +
+    geom_point(aes(x,y,color = `Zone id`)) +
     theme_void() + 
     theme(legend.position = 'none')
 }
 
-voronoi_merge <- function(instance, num_zones, animate = F) {
+voronoi_merge <- function(
+  instance, 
+  num_zones, 
+  method = c("random", "ARV", "distance"),
+  animate = F, 
+  verbose = T
+) {
   # construct the tesselation and triangulation
   vor <- deldir(instance$data$x, instance$data$y)
   
@@ -53,23 +59,30 @@ voronoi_merge <- function(instance, num_zones, animate = F) {
   
   # constructing the igraph object from the edges, vertices and weights
   g <- graph_from_data_frame(edges, directed=FALSE, vertices=instance$data)
-  E(g)$weight <- weights
+  # E(g)$weight <- weights
   
   # randomly assign the first tile to each zone
   initial <- sample(1:instance$no_of_points, num_zones)
   zones <- tibble("Demand point id" = as.character(initial)) %>%
     mutate("Zone id" = as.character(row_number()))
   
-  if (animate == T) print(plot_vor(zones))
+  if (animate) print(plot_vor(zones))
   
   find_neighbors <- function(point) {
     tibble('Demand point id' = neighbors(g, point) %>% as.numeric())
   }
   
   # I think this is inherently a sequential process so it cannot be,
-  # parallelised as subsequent operations are dependent on each other
+  # parallelised as subsequent operations are dependent on each other.
   while (nrow(zones) < nrow(instance$data)) {
     for (i in 1:num_zones) {
+      
+      if (verbose) {
+        cat('Demand points remaining:',
+            nrow(instance$data) - nrow(zones), 
+            '\r')
+      }
+      
       p_in_zone <- zones %>%
         filter(`Zone id` == i)
       
@@ -83,27 +96,97 @@ voronoi_merge <- function(instance, num_zones, animate = F) {
       
       if (nrow(nbors) == 0) next
       
-      # select point to add
-      new_point <- nbors[sample(1:nrow(nbors), 1),] %>%
-        mutate("Zone id" = as.character(i))
+      # select point to add randomly
+      if (method == "random") {
+        new_point <- nbors[sample(1:nrow(nbors), 1),] %>%
+          mutate("Zone id" = as.character(i))
+      }
+      
+      # select point that minimizes the arrival rate variance
+      if (method == "ARV") {
+        nbors <- nbors %>% left_join(
+          instance$data %>% select(`Demand point id`, `Arrival rate`),
+          by = "Demand point id"
+        )
+        
+        # calculate the consequence for the ARV for each neighbor
+        arv_calc <- lapply(
+          split(nbors, 1:nrow(nbors)),
+          function (x) {
+            result <- zones %>% 
+              filter(`Zone id` == i) %>%
+              left_join(
+                instance$data %>% select(`Demand point id`, `Arrival rate`),
+                by = "Demand point id"
+              ) %>%
+              bind_rows(x) %>%
+              summarise(ARV = var(`Arrival rate`))
+            return(
+              tibble(`Demand point id` = x$`Demand point id`, ARV = result$ARV)
+            )
+          }
+        )
+        
+        # select the point with the lowest arrival rate variance
+        new_point <- do.call(bind_rows, arv_calc) %>%
+          filter(ARV == min(ARV)) %>%
+          filter(row_number() == 1) %>%
+          mutate(`Zone id` = as.character(i)) %>%
+          select(-ARV)  
+      }
+      
+      # select point that is closest to a point already in the zone
+      if (method == "distance") {
+        nbors <- nbors %>% left_join(
+          instance$data %>% select(`Demand point id`, x, y),
+          by = "Demand point id"
+        )
+        
+        dist_calc <- lapply(
+          split(nbors, 1:nrow(nbors)),
+          function (x) {
+            result <- zones %>% 
+              filter(`Zone id` == i) %>%
+              left_join(
+                instance$data %>% select(`Demand point id`, x, y),
+                by = "Demand point id"
+              ) %>%
+              bind_rows(x) %>%
+              select(x,y) %>%
+              t()
+            distance <- euclid_norm(result[,1] - result[,2])
+            return(
+              tibble(`Demand point id` = x$`Demand point id`, 
+                     distance = distance)
+            )
+          }
+        )
+        
+        new_point <- do.call(bind_rows, dist_calc) %>%
+          filter(distance == min(distance)) %>%
+          filter(row_number() == 1) %>%
+          mutate(`Zone id` = as.character(i)) %>%
+          select(-distance)
+      }
       
       zones <- bind_rows(zones, new_point)
       if (animate == T) print(plot_vor(zones))
     }
   }
-  if (animate == T) for (i in 1:20) print(plot_vor(zones))
+  if (verbose) cat('Demand points remaining: 0\n')
+  if (animate) for (i in 1:20) print(plot_vor(zones))
   
   return(list("zones" = zones))
 }
 
 instance <- generate_2d_instance(no_of_points = 100)
-rslt <- voronoi_merge(instance, num_zones = 5)
+rslt <- voronoi_merge(instance, num_zones = 5, method = "distance")
 plot_vor(zones = rslt$zones)
 
-# animation::saveGIF(
-#   voronoi_merge(instance, num_zones = 5, animate = T),
-#   interval = 0.1,
-#   outdir = getwd(),
-#   ani.width = 480,
-#   ani.height = 480
-# )
+animation::saveGIF(
+  voronoi_merge(instance, num_zones = 5, method = "distance", animate = T),
+  interval = 0.1,
+  outdir = getwd(),
+  ani.width = 480,
+  ani.height = 480
+)
