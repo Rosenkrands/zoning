@@ -20,7 +20,7 @@ generate_2d_instance <- function(
     "y" = y, 
     "Arrival rate" = arrival_rate
   )
-  results <- list("data" = data, "interval" = interval)
+  results <- list("data" = data, "interval" = interval, "no_of_points" = no_of_points)
   return(results)
 }
 
@@ -140,7 +140,7 @@ solve_ga <- function(instance, centroids) {
   }
   ga_model <- GA::ga(
     type="binary", fitness=eval_func, nBits=centroids$no_of_centroids,
-    popSize=100, pmutation=0.1, maxiter=100, parallel = TRUE
+    popSize=100, pmutation=0.1, maxiter=10, parallel = TRUE
   )
   return(list(
     "ga" = ga_model, 
@@ -222,16 +222,16 @@ plot_2d <- function(instance, centroids, solution, type) {
             y = 1.1*c(-10,10,10,-10)
           )
         ) +
-        stat_voronoi(
-          data = centroids$locations %>% 
-            inner_join(solution$centroids, by = "Centroid id"),
-          aes(x, y),
-          geom="path",
-          outline = data.frame(
-            x = 1.1*c(-10,-10,10,10),
-            y = 1.1*c(-10,10,10,-10)
-          )
-        ) +
+        # stat_voronoi(
+        #   data = centroids$locations %>% 
+        #     inner_join(solution$centroids, by = "Centroid id"),
+        #   aes(x, y),
+        #   geom="path",
+        #   outline = data.frame(
+        #     x = 1.1*c(-10,-10,10,10),
+        #     y = 1.1*c(-10,10,10,-10)
+        #   )
+        # ) +
         geom_point(
           data = centroids$locations %>% 
             inner_join(solution$centroids, by = "Centroid id"), 
@@ -240,9 +240,43 @@ plot_2d <- function(instance, centroids, solution, type) {
         theme_void()
     )
   }
+  
+  if (type == "voronoi_boundary") {
+    return(
+      ggplot(
+        instance$data %>%
+          inner_join(assignment, by = "Demand point id")
+      ) +
+        geom_voronoi(data = instance$data %>% 
+                       left_join(assignment, by = "Demand point id"), 
+                     aes(x,y,fill=`Centroid id`),
+                     alpha = .25,
+                     outline = data.frame(
+                       x = 1.1*c(-10,-10,10,10),
+                       y = 1.1*c(-10,10,10,-10)
+                     )) +
+        # stat_voronoi(
+        #   data = instance$data %>% 
+        #     left_join(assignment, by = "Demand point id"), 
+        #   aes(x,y),
+        #   geom="path",
+        #   outline = data.frame(
+        #     x = 1.1*c(-10,-10,10,10),
+        #     y = 1.1*c(-10,10,10,-10)
+        #   )
+        # ) +
+        geom_point(
+          data = centroids$locations %>% 
+            inner_join(solution$centroids, by = "Centroid id"), 
+          aes(x, y, color=`Centroid id`), shape = 10, size = 5
+        ) +
+        geom_point(aes(x,y,color=`Centroid id`)) +
+        theme_void()
+    )
+  }
 }
 
-# # TEST
+# TEST
 # instance = generate_2d_instance(
 #   no_of_points = 100,
 #   interval = c("min" = -10, "max" = 10)
