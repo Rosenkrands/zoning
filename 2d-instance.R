@@ -24,6 +24,43 @@ generate_2d_instance <- function(
   return(results)
 }
 
+# instance <- generate_2d_instance()
+
+hexadec <- function(size = 64) {
+  paste0(
+    paste0(sample(c(0:9, LETTERS[1:6]), size, T), collapse = ''),
+    '.rds'
+  )
+}
+
+save_instance <- function(instance) {
+  saveRDS(instance, file = paste0('./instances/',hexadec(size = 10)))
+}
+
+# hexadec <- 'F13DA776F1'
+
+load_instance <- function(hexadec) {
+  readRDS(paste0('./instances/', hexadec))
+}
+
+benchmark <- function() {
+  files <- list.files('./instances')
+  
+  results <- tibble(
+    "id" = character(),
+    "fitness" = numeric(),
+    "runtime" = numeric()
+  )
+  
+  for (file in files) {
+    instance <- load_instance(file)
+    centroids <- grid_centroids(instance, dimension = 3)
+    solution <- solve_ga(instance, centroids)
+    
+    results <- c(file, summary(solution$ga)$fitness, 0)
+  }
+}
+
 grid_centroids <- function(
   instance,
   dimension = 3
@@ -84,6 +121,7 @@ solve_ga <- function(instance, centroids) {
   }
   
   eval_func <- function(bitstring) {
+    # if (sum(bitstring) > 5) return(-1)
     centroids_used <- bit_to_cent(bitstring)
     
     result <- centroids$distances %>%
@@ -102,7 +140,7 @@ solve_ga <- function(instance, centroids) {
   }
   ga_model <- GA::ga(
     type="binary", fitness=eval_func, nBits=centroids$no_of_centroids,
-    popSize=100, pmutation=0.1, maxiter=5, parallel = FALSE
+    popSize=100, pmutation=0.1, maxiter=100, parallel = TRUE
   )
   return(list(
     "ga" = ga_model, 
@@ -112,8 +150,8 @@ solve_ga <- function(instance, centroids) {
 
 plot_2d <- function(instance, centroids, solution, type) {
   point_plot <- ggplot(instance$data) +
-    geom_point(aes(x,y)) +
-    # geom_text(aes(x,y,label=`Demand point id`)) +
+    # geom_point(aes(x,y)) +
+    geom_text(aes(x,y,label=`Demand point id`)) +
     theme_void()
   
   if (type == "point") {
@@ -204,7 +242,7 @@ plot_2d <- function(instance, centroids, solution, type) {
   }
 }
 
-# TEST
+# # TEST
 # instance = generate_2d_instance(
 #   no_of_points = 100,
 #   interval = c("min" = -10, "max" = 10)
