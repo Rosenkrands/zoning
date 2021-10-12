@@ -2,96 +2,89 @@ source('2d-instance.R')
 
 library(deldir)
 library(igraph)
-# set.seed(2)
-no_of_points = 100
-instance <- generate_2d_instance(no_of_points = no_of_points)
 
-# ggplot(instance$data) +
-#   geom_voronoi(data = instance$data, aes(x,y,fill=`Demand point id`)) +
-#   geom_point(aes(x,y,label=`Demand point id`)) +
-#   theme_void() + 
-#   theme(legend.position = 'none')
-
-rslt <- deldir(instance$data$x, instance$data$y,
-               rw=c(-10,10,-10,10))
-
-# edges
-weights <- numeric(nrow(rslt$delsgs))
-for (i in 1:nrow(rslt$delsgs)) {
-  weights[i] <- euclid_norm(
-    c(rslt$delsgs$x1[i] - rslt$delsgs$x2[i],
-      rslt$delsgs$y1[i] - rslt$delsgs$y2[i])
-  )
-}
-
-original <- data.frame(from = rslt$dirsgs$ind1,
-                            to = rslt$dirsgs$ind2) %>%
-  mutate(edge = paste0(from,'-',to))
-inverted <- allowed_edges %>%
-  rename(from = to,
-         to = from) %>%
-  mutate(edge = paste0(from,'-',to))
-allowed_edges <- bind_rows(original,inverted) %>%
-  select(edge)
-
-edges <- data.frame(from=rslt$delsgs$ind1,
-                    to=rslt$delsgs$ind2) %>%
-  mutate(edge = paste0(from,'-',to)) %>%
-  inner_join(allowed_edges, by = "edge") %>%
-  select(from, to)
-
-g <- graph_from_data_frame(edges, directed=FALSE, vertices=instance$data)
-E(g)$weight <- weights
-
-plot(g)
-
+# plotting function to use for showcasing solution
 plot_vor <- function(zones) {
   ggplot(instance$data) +
-    geom_voronoi(data = instance$data %>% left_join(zones, by = "Demand point id"), aes(x,y,fill=`Zone id`)) +
+    geom_voronoi(data = instance$data %>% 
+                   left_join(zones, by = "Demand point id"), 
+                 aes(x,y,fill=`Zone id`)) +
     geom_text(aes(x,y,label=`Demand point id`)) +
     theme_void() + 
     theme(legend.position = 'none')
 }
 
-merge_approach <- function(animate = T) {
-  # select a number of nodes
-  num_zones = 6
+voronoi_merge <- function(instance, num_zones, animate = F) {
+  # construct the tesselation and triangulation
+  vor <- deldir(instance$data$x, instance$data$y)
   
-  initial <- sample(1:no_of_points, num_zones)
+  # TODO: We have to many weights as we find them before filtering the edges!
+  # edge weights are calculated using the euclidean norm
+  weights <- numeric(nrow(vor$delsgs))
+  for (i in 1:nrow(vor$delsgs)) {
+    weights[i] <- euclid_norm(
+      c(vor$delsgs$x1[i] - vor$delsgs$x2[i],
+        vor$delsgs$y1[i] - vor$delsgs$y2[i])
+    )
+  }
   
+  # remove some delaunay edges from the boundary points, so we only have the
+  # edges where there are voronoi line segments
+  
+  # first we find all the allowed edges, here there are more than in the
+  # Delaunay triangulation
+  original <- data.frame(from = vor$dirsgs$ind1,
+                         to = vor$dirsgs$ind2) %>%
+    mutate(edge = paste0(from,'-',to))
+  inverted <- original %>%
+    rename(from = to,
+           to = from) %>%
+    mutate(edge = paste0(from,'-',to))
+  allowed_edges <- bind_rows(original,inverted) %>%
+    select(edge)
+  
+  # Then we inner join the allowed edges with the delaunay edges to get the
+  # intersection of the two sets
+  edges <- data.frame(from=vor$delsgs$ind1,
+                      to=vor$delsgs$ind2) %>%
+    mutate(edge = paste0(from,'-',to)) %>%
+    inner_join(allowed_edges, by = "edge") %>%
+    select(from, to)
+  
+  # constructing the igraph object from the edges, vertices and weights
+  g <- graph_from_data_frame(edges, directed=FALSE, vertices=instance$data)
+  E(g)$weight <- weights
+  
+  # randomly assign the first tile to each zone
+  initial <- sample(1:instance$no_of_points, num_zones)
   zones <- tibble("Demand point id" = as.character(initial)) %>%
     mutate("Zone id" = as.character(row_number()))
   
   if (animate == T) print(plot_vor(zones))
-  # loop through zones and add a point that is a neighbor to a point in the zone if possible
   
   find_neighbors <- function(point) {
-    # cat(point, '\n')
     tibble('Demand point id' = neighbors(g, point) %>% as.numeric())
   }
   
+  # I think this is inherently a sequential process so it cannot be,
+  # parallelised as subsequent operations are dependent on each other
   while (nrow(zones) < nrow(instance$data)) {
     for (i in 1:num_zones) {
       p_in_zone <- zones %>%
         filter(`Zone id` == i)
       
-      # print(p_in_zone)
       arg_list <- split(p_in_zone$`Demand point id`, 1:nrow(p_in_zone))
       res_list <- lapply(arg_list, find_neighbors)
       
       nbors <- do.call(bind_rows, res_list) %>%
         mutate(`Demand point id` = as.character(`Demand point id`)) %>%
-        # But also anti_join with points in other zones, maybe just zones instead of p_in_zone
         anti_join(zones, by = ("Demand point id")) %>%
         distinct()
       
       if (nrow(nbors) == 0) next
       
       # select point to add
-      # new_point <- nbors[sample(1:nrow(nbors), 1),] %>%
-      #   mutate("Zone id" = as.character(i))
-      
-      new_point <- nbors[1,] %>%
+      new_point <- nbors[sample(1:nrow(nbors), 1),] %>%
         mutate("Zone id" = as.character(i))
       
       zones <- bind_rows(zones, new_point)
@@ -99,15 +92,18 @@ merge_approach <- function(animate = T) {
     }
   }
   if (animate == T) for (i in 1:20) print(plot_vor(zones))
-  print(plot_vor(zones))
+  
+  return(list("zones" = zones))
 }
 
+instance <- generate_2d_instance(no_of_points = 100)
+rslt <- voronoi_merge(instance, num_zones = 5)
+plot_vor(zones = rslt$zones)
+
 # animation::saveGIF(
-#   merge_approach(animate = T),
+#   voronoi_merge(instance, num_zones = 5, animate = T),
 #   interval = 0.1,
 #   outdir = getwd(),
 #   ani.width = 480,
 #   ani.height = 480
 # )
-
-merge_approach(animate = F)
