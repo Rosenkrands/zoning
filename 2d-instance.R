@@ -156,8 +156,8 @@ plot_2d <- function(instance, centroids, solution, type) {
   }
   
   point_plot <- ggplot(instance$data) +
-    # geom_point(aes(x,y)) +
-    geom_text(aes(x,y,label=`Demand point id`)) +
+    geom_point(aes(x,y)) +
+    # geom_text(aes(x,y,label=`Demand point id`)) +
     theme_void()
   
   if (type == "point") {
@@ -216,6 +216,10 @@ plot_2d <- function(instance, centroids, solution, type) {
           inner_join(assignment, by = "Demand point id")
       ) +
         geom_point(aes(x,y,color=`Centroid id`)) +
+        geom_point(
+          data = solution$centroids, 
+          aes(x, y, color=`Centroid id`), shape = 10, size = 5
+        ) +
         geom_voronoi(
           data = solution$centroids,
           aes(x, y, fill = `Centroid id`),

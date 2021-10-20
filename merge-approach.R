@@ -61,6 +61,46 @@ voronoi_merge <- function(
   g <- graph_from_data_frame(edges, directed=FALSE, vertices=instance$data)
   # E(g)$weight <- weights
   
+  #' TODO: Find groups of points that are to close to not be in the same zone
+  #' these should be grouped before hand in a lookup table, that needs to be checked,
+  #' everytime a point is added to a zone. If we add a point that are part of a 
+  #' group we need to add all members of the group. This could be incorporated in
+  #' the calculation of the objective function.
+  
+  # FIND POINTS THAT ARE CLOSE
+  dist_calc = function(points) {
+    euclid_norm(
+      c(
+        instance$data$x[points[1]] - instance$data$x[points[2]],
+        instance$data$y[points[1]] - instance$data$y[points[2]]
+      )
+    )
+  }
+  
+  too_close <- edges %>%
+    rowwise() %>%
+    mutate(distance = dist_calc(c(from, to))) %>%
+    filter(distance < .5) %>%
+    select(-distance) %>%
+    pivot_longer(cols = c(from, to)) %>%
+    select(`Demand point id` = value) %>%
+    distinct() %>%
+    mutate(`Demand point id` = as.character(`Demand point id`)) %>%
+    left_join(instance$data %>% select(`Demand point id`, x, y), by = "Demand point id")
+  
+  expand.grid(point1 = too_close$`Demand point id`, point2 = too_close$`Demand point id`) %>%
+    tibble() %>% mutate(point1 = as.integer(point1), point2 = as.integer(point2)) %>%
+    filter(point1 != point2) %>%
+    rowwise() %>%
+    mutate(distance = dist_calc(c(point1, point2))) %>%
+    filter(distance < .5)
+  
+  ggplot(instance$data) +
+    # geom_point(aes(x,y)) +
+    geom_text(aes(x,y,label=`Demand point id`)) +
+    geom_text(data = too_close, aes(x,y,label=`Demand point id`), color = "red") +
+    theme_void()
+  
   # randomly assign the first tile to each zone
   initial <- sample(1:instance$no_of_points, num_zones)
   zones <- tibble("Demand point id" = as.character(initial)) %>%

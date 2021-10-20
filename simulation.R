@@ -83,7 +83,7 @@ getNearestAgent <- function(demandid, agentList){
 
 # SIMULATION
 nReplications = 1
-LOS = 500 # Length of Simulation
+LOS = 200 # Length of Simulation
 
 # For now
 df_demandpoints = instance$data %>%
@@ -202,27 +202,27 @@ for (n in 1:nReplications){
 }
 
 # ANIMATION
-# base_plot <- plot_2d(instance, centroids, solution, type = "voronoi") +
-#   theme(legend.position = "none")
-# 
-# animate_log <- function() {
-#   for (i in -1:max(agentLog$time)) {
-#     cat(i, '\r')
-#     df_temp = agentLog %>% 
-#       filter(time == i) %>%
-#       left_join(agentBaseInfo, by = "id")
-#     print(
-#       base_plot + 
-#         geom_point(data = df_temp, aes(Xnow, Ynow, color=Centroid.id), shape = 8, size = 4) +
-#         annotate("text", x = -9.5, y = 10, label = paste0("Time = ", i))
-#     )
-#   }
-# }
+base_plot <- plot_2d(instance, centroids, solution, type = "voronoi") +
+  theme(legend.position = "none")
 
-# animation::saveGIF(
-#   animate_log(),
-#   interval = 0.05,
-#   outdir = getwd(),
-#   ani.width = 480,
-#   ani.height = 480
-# )
+animate_log <- function() {
+  for (i in -1:max(agentLog$time)) {
+    cat(i, '\r')
+    df_temp = agentLog %>%
+      filter(time == i) %>%
+      left_join(agentBaseInfo, by = "id")
+    print(
+      base_plot +
+        geom_point(data = df_temp, aes(Xnow, Ynow, color=Centroid.id), shape = 8, size = 4) +
+        annotate("text", x = -9.5, y = 10, label = paste0("Time = ", i))
+    )
+  }
+}
+
+animation::saveGIF(
+  animate_log(),
+  interval = 0.05,
+  outdir = getwd(),
+  ani.width = 480,
+  ani.height = 480
+)
