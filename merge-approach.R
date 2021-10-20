@@ -157,7 +157,7 @@ voronoi_merge <- function(
               filter(distance == min(distance)) %>%
               filter(row_number() == 1)
             return(
-              tibble(`Demand point id` = x$`Demand point id`, 
+              tibble(`Demand point id` = arg$`Demand point id`, 
                      distance = result$distance)
             )
           }

@@ -21,7 +21,7 @@ generate_2d_instance <- function(
     "Arrival rate" = arrival_rate
   ) %>%
     mutate(prob = cumsum(`Arrival rate`/sum(`Arrival rate`)))
-  results <- list("data" = data, "interval" = interval)
+  results <- list("data" = data, "interval" = interval, "no_of_points" = no_of_points)
   return(results)
 }
 
