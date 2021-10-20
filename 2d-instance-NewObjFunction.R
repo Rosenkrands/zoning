@@ -1,4 +1,4 @@
-# IDEA: should save some instances to compare on so we don't get different results
+# IDEA: should save some instances to compare on so we dont get different results
 # everytime
 
 library(tidyverse)
@@ -13,53 +13,15 @@ generate_2d_instance <- function(
   id <- 1:no_of_points
   x <- runif(no_of_points, min = interval["min"], max = interval["max"])
   y <- runif(no_of_points, min = interval["min"], max = interval["max"])
-  arrival_rate <- round(runif(no_of_points, min = 1, max = 3))/100
+  arrival_rate <- round(runif(no_of_points, min = 1, max = 3))
   data <- tibble(
     "Demand point id" = as.character(id),
     "x" = x, 
     "y" = y, 
     "Arrival rate" = arrival_rate
-  ) %>%
-    mutate(prob = cumsum(`Arrival rate`/sum(`Arrival rate`)))
+  )
   results <- list("data" = data, "interval" = interval)
   return(results)
-}
-
-# instance <- generate_2d_instance()
-
-hexadec <- function(size = 64) {
-  paste0(
-    paste0(sample(c(0:9, LETTERS[1:6]), size, T), collapse = ''),
-    '.rds'
-  )
-}
-
-save_instance <- function(instance) {
-  saveRDS(instance, file = paste0('./instances/',hexadec(size = 10)))
-}
-
-# hexadec <- 'F13DA776F1'
-
-load_instance <- function(hexadec) {
-  readRDS(paste0('./instances/', hexadec))
-}
-
-benchmark <- function() {
-  files <- list.files('./instances')
-  
-  results <- tibble(
-    "id" = character(),
-    "fitness" = numeric(),
-    "runtime" = numeric()
-  )
-  
-  for (file in files) {
-    instance <- load_instance(file)
-    centroids <- grid_centroids(instance, dimension = 3)
-    solution <- solve_ga(instance, centroids)
-    
-    results <- c(file, summary(solution$ga)$fitness, 0)
-  }
 }
 
 grid_centroids <- function(
@@ -122,42 +84,57 @@ solve_ga <- function(instance, centroids) {
   }
   
   eval_func <- function(bitstring) {
-    # if (sum(bitstring) > 5) return(-1)
-    centroids_used <- bit_to_cent(bitstring)
+      #if (sum(bitstring) > 5 | sum(bitstring) < 1) return(-Inf)
+      centroids_used <- bit_to_cent(bitstring)
     
+    # result <- centroids$distances %>%
+    #   filter(`Centroid id` %in% centroids_used$`Centroid id`) %>%
+    #   group_by(`Demand point id`) %>%
+    #   filter(Distance == min(Distance)) %>%
+    #   ungroup() %>%
+    #   inner_join(
+    #     select(instance$data, `Demand point id`, `Arrival rate`),
+    #     by = "Demand point id"
+    #   ) %>%
+    #   group_by(`Centroid id`) %>%
+    #   summarise(`Arrival rate variance` = var(`Arrival rate`)) %>%
+    #   summarise(MARV = mean(`Arrival rate variance`))
+    # return(-result$MARV)
+    
+    # Assume constant speed so time and distance are interchangable
+    # Fixed service time per delivery
+    tau <- 1
+    # Punishment for unwanted centroids
+    len <- sum(bitstring) - min(5, sum(bitstring))
+    # Computation of objective value
     result <- centroids$distances %>%
-      filter(`Centroid id` %in% centroids_used$`Centroid id`) %>%
-      group_by(`Demand point id`) %>% 
-      filter(Distance == min(Distance)) %>%
-      ungroup() %>%
-      inner_join(
-        select(instance$data, `Demand point id`, `Arrival rate`),
-        by = "Demand point id"
-      ) %>%
-      group_by(`Centroid id`) %>%
-      summarise(`Arrival rate variance` = var(`Arrival rate`)) %>%
-      summarise(MARV = mean(`Arrival rate variance`))
-    return(-result$MARV)
+        filter(`Centroid id` %in% centroids_used$`Centroid id`) %>%
+        group_by(`Demand point id`) %>%
+        filter(Distance == min(Distance)) %>%
+        ungroup() %>%
+        inner_join(
+            select(instance$data, `Demand point id`, `Arrival rate`),
+            by = "Demand point id"
+        ) %>%
+        group_by(`Centroid id`) %>%
+        summarise(`Operation time` = sum(`Arrival rate` * (Distance + tau))) %>%
+        summarise(TOT = sum(`Operation time`) + len*100)
+    return(-result$TOT)
   }
   ga_model <- GA::ga(
     type="binary", fitness=eval_func, nBits=centroids$no_of_centroids,
-    popSize=100, pmutation=0.1, maxiter=10, parallel = TRUE
+    popSize=100, pmutation=0.1, maxiter=200, parallel = TRUE, monitor = TRUE
   )
   return(list(
     "ga" = ga_model, 
-    "centroids" = bit_to_cent(summary(ga_model)$solution) %>%
-      left_join(centroids$locations, by = "Centroid id")
+    "centroids" = bit_to_cent(summary(ga_model)$solution)
   ))
 }
 
 plot_2d <- function(instance, centroids, solution, type) {
-  if ("Centroid id" %in% colnames(instance$data)) {
-    instance$data <- instance$data %>% select(-`Centroid id`)
-  }
-  
   point_plot <- ggplot(instance$data) +
-    # geom_point(aes(x,y)) +
-    geom_text(aes(x,y,label=`Demand point id`)) +
+    geom_point(aes(x,y)) +
+    # geom_text(aes(x,y,label=`Demand point id`)) +
     theme_void()
   
   if (type == "point") {
@@ -179,7 +156,8 @@ plot_2d <- function(instance, centroids, solution, type) {
     return(
       point_plot +
         geom_point(
-          data = solution$centroids, 
+          data = centroids$locations %>% 
+            inner_join(solution$centroids, by = "Centroid id"), 
           aes(x, y), shape = 10, size = 5
         )
     )
@@ -189,8 +167,7 @@ plot_2d <- function(instance, centroids, solution, type) {
     inner_join(solution$centroids, by = "Centroid id") %>%
     group_by(`Demand point id`) %>%
     filter(Distance == min(Distance)) %>%
-    ungroup() %>%
-    select(-x, -y)
+    ungroup()
   
   instance_w_assignment <- instance$data %>%
     inner_join(assignment, by = "Demand point id")
@@ -202,7 +179,8 @@ plot_2d <- function(instance, centroids, solution, type) {
       ) +
         geom_point(aes(x,y,color=`Centroid id`)) +
         geom_point(
-          data = solution$centroids, 
+          data = centroids$locations %>% 
+            inner_join(solution$centroids, by = "Centroid id"), 
           aes(x, y, color=`Centroid id`), shape = 10, size = 5
         ) +
         theme_void()
@@ -217,7 +195,8 @@ plot_2d <- function(instance, centroids, solution, type) {
       ) +
         geom_point(aes(x,y,color=`Centroid id`)) +
         geom_voronoi(
-          data = solution$centroids,
+          data = centroids$locations %>% 
+            inner_join(solution$centroids, by = "Centroid id"),
           aes(x, y, fill = `Centroid id`),
           alpha = .25,
           # geom="path",
@@ -227,7 +206,8 @@ plot_2d <- function(instance, centroids, solution, type) {
           )
         ) +
         stat_voronoi(
-          data = solution$centroids,
+          data = centroids$locations %>% 
+            inner_join(solution$centroids, by = "Centroid id"),
           aes(x, y),
           geom="path",
           outline = data.frame(
@@ -235,58 +215,33 @@ plot_2d <- function(instance, centroids, solution, type) {
             y = 1.1*c(-10,10,10,-10)
           )
         ) +
-        theme_void()
-    )
-  }
-  
-  if (type == "voronoi_boundary") {
-    return(
-      ggplot(
-        instance$data %>%
-          inner_join(assignment, by = "Demand point id")
-      ) +
-        geom_voronoi(data = instance$data %>% 
-                       left_join(assignment, by = "Demand point id"), 
-                     aes(x,y,fill=`Centroid id`),
-                     alpha = .25,
-                     outline = data.frame(
-                       x = 1.1*c(-10,-10,10,10),
-                       y = 1.1*c(-10,10,10,-10)
-                     )) +
-        # stat_voronoi(
-        #   data = instance$data %>% 
-        #     left_join(assignment, by = "Demand point id"), 
-        #   aes(x,y),
-        #   geom="path",
-        #   outline = data.frame(
-        #     x = 1.1*c(-10,-10,10,10),
-        #     y = 1.1*c(-10,10,10,-10)
-        #   )
-        # ) +
         geom_point(
-          data = solution$centroids, 
+          data = centroids$locations %>% 
+            inner_join(solution$centroids, by = "Centroid id"), 
           aes(x, y, color=`Centroid id`), shape = 10, size = 5
         ) +
-        geom_point(aes(x,y,color=`Centroid id`)) +
         theme_void()
     )
   }
 }
 
 # TEST
-# instance = generate_2d_instance(
-#   no_of_points = 100,
-#   interval = c("min" = -10, "max" = 10)
-# )
-# 
-# plot_2d(instance, centroids, solution, type = "point")
-# 
-# centroids = grid_centroids(instance, dimension = 5)
-# 
-# plot_2d(instance, centroids, solution, type = "centroid")
-# 
-# solution <- solve_ga(instance, centroids)
-# 
-# plot_2d(instance, centroids, solution, type = "chosen")
-# plot_2d(instance, centroids, solution, type = "group")
-# plot_2d(instance, centroids, solution, type = "voronoi")
+instance = generate_2d_instance(
+  no_of_points = 100,
+  interval = c("min" = -10, "max" = 10)
+)
+
+plot_2d(instance, centroids, solution, type = "point")
+
+centroids = grid_centroids(instance, dimension = 10)
+
+plot_2d(instance, centroids, solution, type = "centroid")
+
+solution <- solve_ga(instance, centroids)
+
+plot_2d(instance, centroids, solution, type = "chosen")
+plot_2d(instance, centroids, solution, type = "group")
+plot_2d(instance, centroids, solution, type = "voronoi")
+
+# 100 iterations seems to be enough for it to get better for higher resolution, even though it start higher (more initial points)
+# Dimension 10 or more requires more than 100 iterations and the initialisation time is still high.
