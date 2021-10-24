@@ -135,8 +135,8 @@ solve_ga <- function(instance, centroids) {
         by = "Demand point id"
       ) %>%
       group_by(`Centroid id`) %>%
-      summarise(`Arrival rate variance` = var(`Arrival rate`)) %>%
-      summarise(MARV = mean(`Arrival rate variance`))
+      summarise(`Arrival rate variance` = sum(`Arrival rate`)) %>%
+      summarise(MARV = var(`Arrival rate variance`))
     return(-result$MARV)
   }
   ga_model <- GA::ga(
