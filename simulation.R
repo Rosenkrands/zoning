@@ -28,7 +28,7 @@ getDemandpointID <- function(df){
 # getDemandpointID(instance$data$prob)
 
 # AGENTS
-centroids = grid_centroids(instance, dimension = 3)
+centroids = grid_centroids(instance, dimension = 4)
 # coordinates incorporated in the solve_ga function
 solution <- solve_ga(instance, centroids)
 
@@ -83,7 +83,7 @@ getNearestAgent <- function(demandid, agentList){
 
 # SIMULATION
 nReplications = 1
-LOS = 200 # Length of Simulation
+LOS = 100 # Length of Simulation
 
 # For now
 df_demandpoints = instance$data %>%
@@ -201,19 +201,68 @@ for (n in 1:nReplications){
   }
 }
 
+# Calculate distance between all agents at any given time
+locations <- agentLog %>%
+  select(id, x = Xnow, y = Ynow, time)
+
+combinations <- combn(unique(locations$id), 2) %>% t()
+
+dist_calc = function(points, t) {
+  locations_temp <- locations %>% filter(time == t)
+  # print(locations_temp)
+  euclid_norm(
+    c(
+      locations_temp$x[points[1]] - locations_temp$x[points[2]],
+      locations_temp$y[points[1]] - locations_temp$y[points[2]]
+    )
+  )
+}
+
+distances <- tibble(id1 = rep(combinations[,1],length(unique(locations$time))), 
+                    id2 = rep(combinations[,2],length(unique(locations$time))),
+                    time = sort(rep(seq(-1, length(unique(locations$time)) - 2), length(combinations[,1])))) %>%
+  rowwise() %>%
+  mutate(distance = dist_calc(points = c(id1, id2), t = time))
+
+ggplot(distances) + geom_histogram(aes(distance), bins = 30)
+
 # ANIMATION
-base_plot <- plot_2d(instance, centroids, solution, type = "voronoi") +
+base_plot <- plot_2d(instance, centroids, solution, type = "voronoi_boundary") +
   theme(legend.position = "none")
 
 animate_log <- function() {
   for (i in -1:max(agentLog$time)) {
+    if (i == 0) next
     cat(i, '\r')
     df_temp = agentLog %>%
       filter(time == i) %>%
       left_join(agentBaseInfo, by = "id")
+    
+    # Safety distance
+    locations <- df_temp %>% select(id, x = Xnow, y = Ynow)
+    combinations <- combn(locations$id, 2) %>% t()
+    
+    dist_calc = function(points) {
+      euclid_norm(
+        c(
+          locations$x[points[1]] - locations$x[points[2]],
+          locations$y[points[1]] - locations$y[points[2]]
+        )
+      )
+    }
+    
+    distances <- tibble(id1 = combinations[,1], id2 = combinations[,2]) %>%
+      rowwise() %>%
+      mutate(distance = dist_calc(c(id1, id2)))
+      
+    segments <- distances %>%
+      left_join(locations, by = c("id1" = "id")) %>%
+      left_join(locations, by = c("id2" = "id"), suffix = c("", "end"))
+    
     print(
       base_plot +
         geom_point(data = df_temp, aes(Xnow, Ynow, color=Centroid.id), shape = 8, size = 4) +
+        geom_segment(data = segments, aes(x = x, y = y, xend = xend, yend = yend), color = "darkgray") +
         annotate("text", x = -9.5, y = 10, label = paste0("Time = ", i))
     )
   }
@@ -226,3 +275,7 @@ animation::saveGIF(
   ani.width = 480,
   ani.height = 480
 )
+
+# animation::saveHTML(
+#   animate_log()
+# )
