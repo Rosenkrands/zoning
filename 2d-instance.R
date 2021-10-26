@@ -330,20 +330,25 @@ plot_2d <- function(instance, centroids, solution, type) {
   }
 }
 
-# TEST
-instance = generate_2d_instance(
-  no_of_points = 100,
-  interval = c("min" = -10, "max" = 10)
-)
+plot_network <- function(instance, solution) {
+  ...
+}
 
-plot_2d(instance, centroids, solution, type = "point")
-
-centroids = grid_centroids(instance, dimension = 5)
-
-plot_2d(instance, centroids, solution, type = "centroid")
-
-solution <- solve_ga(instance, centroids, obj = "ARV")
-
-plot_2d(instance, centroids, solution, type = "chosen")
-plot_2d(instance, centroids, solution, type = "group")
-plot_2d(instance, centroids, solution, type = "voronoi")
+# # TEST
+# instance = generate_2d_instance(
+#   no_of_points = 100,
+#   interval = c("min" = -10, "max" = 10)
+# )
+# 
+# plot_2d(instance, centroids, solution, type = "point")
+# 
+# centroids = grid_centroids(instance, dimension = 5)
+# 
+# plot_2d(instance, centroids, solution, type = "centroid")
+# 
+# solution <- solve_ga(instance, centroids, no_of_centers = 5, obj = "ARV")
+# solution <- solve_kmeans(instance, no_of_centers = 5)
+# 
+# plot_2d(instance, centroids, solution, type = "chosen")
+# plot_2d(instance, centroids, solution, type = "group")
+# plot_2d(instance, centroids, solution, type = "voronoi")
