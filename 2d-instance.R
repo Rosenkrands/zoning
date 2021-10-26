@@ -179,7 +179,35 @@ solve_ga <- function(instance, centroids, no_of_centers = 5, obj = c("ARV", "TOT
         summarise(`Operation time` = sum(`Arrival rate` * (Distance + tau))) %>%
         summarise(TOT = sum(`Operation time`) + len*100)
       return(-result$TOT)
-    }
+    } else if (obj == "SAFE") {
+          function(bitstring) {
+              centroids_used <- bit_to_cent(bitstring)
+              points <- instance$data %>% 
+                  select(`Demand point id`, x, y)
+              points_dist <- dist(points)
+              dist_temp <- vector(length = length(result$Distance))
+              # Computation of objective value
+              result <- centroids$distances %>%
+                  filter(`Centroid id` %in% centroids_used$`Centroid id`) %>%
+                  group_by(`Demand point id`) %>%
+                  filter(Distance == min(Distance)) %>%
+                  ungroup() %>%
+                  inner_join(
+                      select(points, `Demand point id`, x, y),
+                      by = "Demand point id"
+                  ) %>%
+                  group_by(`Centroid id`)
+                  for (i in 1:length(result$Distance)) {
+                      for (j in 1:length(result$Distance)) {
+                          if (result$`Centroid id`[i] == result$`Centroid id`[j]) {result$Distance[i] <- Inf}
+                          else {
+                              dist_temp[j] <- dist(c(x[i],y[i]), c(x[j],y[j]))
+                          }
+                          result$Distance[i] <- min(dist_temp)
+                      }
+                  }  
+              return(min(result$Distance))
+          }
   }
   ga_model <- GA::ga(
     type="binary", fitness=eval_func, nBits=centroids$no_of_centroids,
