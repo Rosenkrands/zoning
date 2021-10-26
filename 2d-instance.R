@@ -150,6 +150,17 @@ solve_ga <- function(instance, centroids) {
   ))
 }
 
+solve_kmeans <- function(instance, no_of_centers = 5) {
+  coordinates <- instance$data %>% select(x, y)
+  centroids <- kmeans(x = coordinates, centers = 5, nstart = 20)
+  clusters <- as.data.frame(centroids$centers)
+  clustering_vector <- centroids$cluster
+  
+  return(list("clusters" = clusters,
+              "clustering_vector" = clustering_vector, 
+              "no_of_centers" = no_of_centers))
+}
+
 plot_2d <- function(instance, centroids, solution, type) {
   if ("Centroid id" %in% colnames(instance$data)) {
     instance$data <- instance$data %>% select(-`Centroid id`)

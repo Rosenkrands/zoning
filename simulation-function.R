@@ -2,7 +2,7 @@ rm(list = ls())
 source('2d-instance.R')
 
 simulation <- function(
-  instance, centroids, solution, method = "GA"
+  instance, centroids = NULL, solution, method = c("GA","KMeans")
 ) {
   # Setting parameters for later use, maybe unneccesary
   nReplications = 3 
@@ -11,13 +11,22 @@ simulation <- function(
   nDemands = nrow(instance$data)
   totaldemandrate = sum(instance$data$`Arrival rate`)
   
-  nAgents = nrow(solution$centroids)
-  agentBaseInfo = data.frame(
-    id = c(1:nAgents), 
-    X = solution$centroids$x, 
-    Y = solution$centroids$y,
-    `Centroid id` = solution$centroids$`Centroid id`
-  )
+  if (method == "GA") {
+    nAgents = nrow(solution$centroids)
+    agentBaseInfo = data.frame(
+      id = c(1:nAgents), 
+      X = solution$centroids$x, 
+      Y = solution$centroids$y,
+      `Centroid id` = solution$centroids$`Centroid id`
+    )
+  } else if (method == "KMeans") {
+    nAgents = solution$no_of_centers
+    agentBaseInfo = data.frame(
+      id = c(1:nAgents), 
+      X = solution$clusters$x, 
+      Y = solution$clusters$y
+    )
+  }
   
   # Helper functions
   getDemandpointID <- function(df){
@@ -47,6 +56,8 @@ simulation <- function(
         `Demand point id`, `Centroid id`
       ), by = "Demand point id"
     )  
+  } else if (method == "KMeans") {
+    instance$data$`Centroid id` <- solution$clustering_vector
   }
   
   getNearestAgent <- function(demandid, agentList){
@@ -62,9 +73,13 @@ simulation <- function(
     ] %>% as.character()
     for (i in 1:nrow(agentList)){
       if (
-        demandid_zone == agentBaseInfo[
-          agentBaseInfo$id == agentList$id[i], "Centroid.id"
-        ]
+        if (method == "GA"){
+          demandid_zone == agentBaseInfo[
+            agentBaseInfo$id == agentList$id[i], "Centroid.id"
+          ]  
+        } else if (method == "KMeans") {
+          demandid_zone == agentBaseInfo[agentBaseInfo$id == agentList$id[i], "id"]
+        }
       ) {
         df_temp$dist[i] = if_else(
           agentList$status[i] == "IDLE", 
@@ -244,5 +259,7 @@ simulation <- function(
 # centroids = grid_centroids(instance, dimension = 4)
 # 
 # solution = solve_ga(instance, centroids)
+# # solution = solve_kmeans(instance, no_of_centers = 5)
 # 
 # sim_result <- simulation(instance, centroids, solution, method = "GA")
+# # sim_result <- simulation(instance, solution = solution, method = "KMeans")
