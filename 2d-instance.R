@@ -178,7 +178,8 @@ solve_ga <- function(instance, centroids, no_of_centers = 5, obj = c("ARV", "TOT
         group_by(`Centroid id`) %>%
         summarise(`Operation time` = sum(`Arrival rate` * (Distance + tau))) %>%
         summarise(TOT = sum(`Operation time`) + len*100)
-      return(-result$TOT)
+       return(-result$TOT)
+      }
     } else if (obj == "SAFE") {
           function(bitstring) {
               centroids_used <- bit_to_cent(bitstring)
