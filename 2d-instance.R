@@ -114,7 +114,7 @@ grid_centroids <- function(
   return(list("locations" = locations, "distances" = distances, "no_of_centroids" = dimension^2))
 }
 
-solve_ga <- function(instance, centroids, no_of_centers = 5, obj = c("ARV", "TOT")) {
+solve_ga <- function(instance, centroids, no_of_centers = 5, obj = c("ARV", "TOT", "SAFE")) {
   bit_to_cent <- function(bitstring) {
     tibble::tibble(
       `Centroid id` = as.character(1:length(bitstring) * bitstring)
@@ -182,11 +182,12 @@ solve_ga <- function(instance, centroids, no_of_centers = 5, obj = c("ARV", "TOT
       }
     } else if (obj == "SAFE") {
           function(bitstring) {
+            len <- sum(bitstring) - min(no_of_centers, sum(bitstring))  
+            
               centroids_used <- bit_to_cent(bitstring)
               points <- instance$data %>% 
                   select(`Demand point id`, x, y)
               points_dist <- dist(points)
-              dist_temp <- vector(length = length(result$Distance))
               # Computation of objective value
               result <- centroids$distances %>%
                   filter(`Centroid id` %in% centroids_used$`Centroid id`) %>%
@@ -198,16 +199,18 @@ solve_ga <- function(instance, centroids, no_of_centers = 5, obj = c("ARV", "TOT
                       by = "Demand point id"
                   ) %>%
                   group_by(`Centroid id`)
-                  for (i in 1:length(result$Distance)) {
-                      for (j in 1:length(result$Distance)) {
-                          if (result$`Centroid id`[i] == result$`Centroid id`[j]) {result$Distance[i] <- Inf}
-                          else {
-                              dist_temp[j] <- dist(c(x[i],y[i]), c(x[j],y[j]))
-                          }
-                          result$Distance[i] <- min(dist_temp)
-                      }
-                  }  
-              return(min(result$Distance))
+              dist_temp <- vector(length = length(result$Distance))
+                for (i in 1:length(result$Distance)) {
+                    for (j in 1:length(result$Distance)) {
+                        if (result$`Centroid id`[i] == result$`Centroid id`[j]) {dist_temp[j] <- Inf}
+                        else {
+                            dist_temp[j] <- euclid_norm(c(result$x[i],result$y[i])-c(result$x[j],result$y[j]))
+                        }
+                    }
+                  result$Distance[i] <- min(dist_temp)
+                  # if (min(dist_temp) == 0) cat(i, j, min(dist_temp), '\n')
+                }  
+              return(min(result$Distance) - len*100)
           }
   }
   ga_model <- GA::ga(
@@ -215,11 +218,20 @@ solve_ga <- function(instance, centroids, no_of_centers = 5, obj = c("ARV", "TOT
     popSize=100, pmutation=0.1, maxiter=10, parallel = TRUE
   )
   
-  instance <- 
+  centroids_used <- bit_to_cent(summary(ga_model)$solution)
+  assignment <- centroids$distances %>%
+    filter(`Centroid id` %in% centroids_used$`Centroid id`) %>%
+    group_by(`Demand point id`) %>%
+    filter(Distance == min(Distance))
+  
+  instance <- instance$data %>%
+    left_join(assignment %>% select(-Distance), by = "Demand point id") %>%
+    left_join(centroids$locations, by = "Centroid id", suffix = c("",".centroid"))
   return(list(
     "ga" = ga_model, 
-    "centroids" = bit_to_cent(summary(ga_model)$solution) %>%
-      left_join(centroids$locations, by = "Centroid id")
+    "centroids" = centroids_used %>%
+      left_join(centroids$locations, by = "Centroid id"),
+    "instance" = instance
   ))
 }
 
@@ -370,24 +382,24 @@ plot_2d <- function(instance, centroids, solution, type) {
 }
 
 plot_network <- function(instance, solution) {
-  ...
+  solution
 }
 
-# # TEST
-instance = generate_2d_instance(
-  no_of_points = 100,
-  interval = c("min" = -10, "max" = 10)
-)
-
-# plot_2d(instance, centroids, solution, type = "point")
-
-centroids = grid_centroids(instance, dimension = 5)
-
-# plot_2d(instance, centroids, solution, type = "centroid")
-
-solution <- solve_ga(instance, centroids, no_of_centers = 5, obj = "ARV")
-solution <- solve_kmeans(instance, no_of_centers = 5)
-
+# # # TEST
+# instance = generate_2d_instance(
+#   no_of_points = 100,
+#   interval = c("min" = -10, "max" = 10)
+# )
+# 
+# # plot_2d(instance, centroids, solution, type = "point")
+# 
+# centroids = grid_centroids(instance, dimension = 5)
+# 
+# # plot_2d(instance, centroids, solution, type = "centroid")
+# 
+# solution_ga <- solve_ga(instance, centroids, no_of_centers = 5, obj = "SAFE")
+# solution_km <- solve_kmeans(instance, no_of_centers = 5)
+# 
 # plot_2d(instance, centroids, solution, type = "chosen")
 # plot_2d(instance, centroids, solution, type = "group")
 # plot_2d(instance, centroids, solution, type = "voronoi")
