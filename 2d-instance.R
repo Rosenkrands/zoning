@@ -35,7 +35,7 @@ hexadec <- function(size = 64) {
 }
 
 save_instance <- function(instance) {
-  saveRDS(instance, file = paste0('./instances/',hexadec(size = 10)))
+  saveRDS(instance, file = paste0('./instances/',hexadec(size = 5)))
 }
 
 # hexadec <- 'F13DA776F1'
