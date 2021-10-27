@@ -197,7 +197,7 @@ solve_ga <- function(instance, centroids, no_of_centers = 5, obj = c("ARV", "TOT
   }
   ga_model <- GA::ga(
     type="binary", fitness=eval_func, nBits=centroids$no_of_centroids,
-    popSize=100, pmutation=0.1, maxiter=10, parallel = TRUE
+    popSize=100, pmutation=0.1, maxiter=100, parallel = TRUE
   )
   
   centroids_used <- bit_to_cent(summary(ga_model)$solution)
@@ -219,7 +219,7 @@ solve_ga <- function(instance, centroids, no_of_centers = 5, obj = c("ARV", "TOT
 
 solve_kmeans <- function(instance, no_of_centers = 5) {
   coordinates <- instance$data %>% select(x, y)
-  centroids <- kmeans(x = coordinates, centers = 5, nstart = 20)
+  centroids <- kmeans(x = coordinates, centers = no_of_centers, nstart = 20)
   clusters <- as.data.frame(centroids$centers)
   clustering_vector <- centroids$cluster
   

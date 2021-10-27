@@ -13,7 +13,7 @@ for (file in files) {
   ))
   
   # solve_ga
-  centroids <- grid_centroids(instance, dimension = 5)
+  centroids <- grid_centroids(instance, dimension = 7)
 
   for (obj in c("ARV", "TOT", "SAFE")) {
     solution <- solve_ga(instance, centroids, no_of_centers = 5, obj = obj)

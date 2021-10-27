@@ -51,3 +51,35 @@ WCSS <- function(solution) {
 #' then save as a row in a table. Can be easily parallelized to save time.
 #' Get instance id, solution method and objective function from file name.
 
+sol_files <- list.files('./solutions')
+
+calc_obj <- function(file) {
+  clean_name <- substring(file, 1, nchar(file) - 4)
+  specification <- str_split(clean_name,'_')
+  
+  instance_id <- specification[[1]][1]
+  method <- specification[[1]][2]
+  obj <- specification[[1]][3]
+  
+  solution <- readRDS(paste0('./solutions/',file))
+  
+  tibble(
+    instance = instance_id,
+    method,
+    obj,
+    ARV = ARV(solution),
+    TOT = TOT(solution),
+    SAFE = SAFE(solution),
+    WCSS = WCSS(solution)
+  )
+}
+
+result <- do.call(bind_rows, lapply(sol_files %>% as.list(), calc_obj))
+
+result_mean <- result %>%
+  group_by(method, obj) %>%
+  summarise(ARV = mean(ARV),
+            TOT = mean(TOT),
+            SAFE = mean(SAFE),
+            WCSS = mean(WCSS))
+xtable
