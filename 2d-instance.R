@@ -382,7 +382,19 @@ plot_2d <- function(instance, centroids, solution, type) {
 }
 
 plot_network <- function(instance, solution) {
-  solution
+  centroids <- solution$instance %>% 
+    select(`Centroid id`, x.centroid, y.centroid) %>%
+    distinct()
+  
+  ggplot(solution$instance) +
+    geom_segment(aes(x = x, y = y, xend = x.centroid, yend = y.centroid),
+                 color = "gray") +
+    geom_point(aes(x,y, color = `Centroid id`)) +
+    geom_point(
+      data = centroids, 
+      aes(x.centroid, y.centroid, color=`Centroid id`), shape = 10, size = 5
+    ) +
+    theme_void() 
 }
 
 # # # TEST
