@@ -44,24 +44,6 @@ load_instance <- function(hexadec) {
   readRDS(paste0('./instances/', hexadec))
 }
 
-benchmark <- function() {
-  files <- list.files('./instances')
-  
-  results <- tibble(
-    "id" = character(),
-    "fitness" = numeric(),
-    "runtime" = numeric()
-  )
-  
-  for (file in files) {
-    instance <- load_instance(file)
-    centroids <- grid_centroids(instance, dimension = 3)
-    solution <- solve_ga(instance, centroids)
-    
-    results <- c(file, summary(solution$ga)$fitness, 0)
-  }
-}
-
 grid_centroids <- function(
   instance,
   dimension = 3
