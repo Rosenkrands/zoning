@@ -108,7 +108,8 @@ solve_ga <- function(instance, centroids, no_of_centers = 5, obj = c("ARV", "TOT
       # if (sum(bitstring) > 5) return(-1)
       centroids_used <- bit_to_cent(bitstring)
       
-      len <- sum(bitstring) - min(no_of_centers, sum(bitstring))
+      # len <- sum(bitstring) - min(no_of_centers, sum(bitstring))
+      len <- abs(no_of_centers - sum(bitstring))  
       result <- centroids$distances %>%
         filter(`Centroid id` %in% centroids_used$`Centroid id`) %>%
         group_by(`Demand point id`) %>%
@@ -120,7 +121,7 @@ solve_ga <- function(instance, centroids, no_of_centers = 5, obj = c("ARV", "TOT
         ) %>%
         group_by(`Centroid id`) %>%
         summarise(`Arrival rate variance` = sum(`Arrival rate`)) %>%
-        summarise(MARV = var(`Arrival rate variance`) + len*100)
+        summarise(MARV = var(`Arrival rate variance`) + len*1000)
       return(-result$MARV)
     }
   } else if (obj == "TOT") {
@@ -146,7 +147,8 @@ solve_ga <- function(instance, centroids, no_of_centers = 5, obj = c("ARV", "TOT
       # Fixed service time per delivery
       tau <- 1
       # Punishment for unwanted centroids
-      len <- sum(bitstring) - min(no_of_centers, sum(bitstring))
+      # len <- sum(bitstring) - min(no_of_centers, sum(bitstring))
+      len <- abs(no_of_centers - sum(bitstring))  
       # Computation of objective value
       result <- centroids$distances %>%
         filter(`Centroid id` %in% centroids_used$`Centroid id`) %>%
@@ -164,7 +166,8 @@ solve_ga <- function(instance, centroids, no_of_centers = 5, obj = c("ARV", "TOT
       }
     } else if (obj == "SAFE") {
           function(bitstring) {
-            len <- sum(bitstring) - min(no_of_centers, sum(bitstring))  
+            if (sum(bitstring) < 2) {return(-Inf)}
+            len <- abs(no_of_centers - sum(bitstring))  
             
               centroids_used <- bit_to_cent(bitstring)
               points <- instance$data %>% 
@@ -192,15 +195,21 @@ solve_ga <- function(instance, centroids, no_of_centers = 5, obj = c("ARV", "TOT
                   result$Distance[i] <- min(dist_temp)
                   # if (min(dist_temp) == 0) cat(i, j, min(dist_temp), '\n')
                 }  
-              return(min(result$Distance) - len*100)
+              # cat("Value is", min(result$Distance), "\n")
+              # if (min(result$Distance) == Inf) {
+              #   return(-Inf)
+              # } else {
+              #   return(min(result$Distance) - len*1000)
+              # }
+              return(min(result$Distance) - len*1000)
           }
   }
   ga_model <- GA::ga(
     type="binary", fitness=eval_func, nBits=centroids$no_of_centroids,
-    popSize=100, pmutation=0.1, maxiter=100, parallel = TRUE
+    popSize=100, pmutation=0.1, maxiter=100, parallel = T
   )
   
-  centroids_used <- bit_to_cent(summary(ga_model)$solution)
+  centroids_used <- bit_to_cent(summary(ga_model)$solution[1,])
   assignment <- centroids$distances %>%
     filter(`Centroid id` %in% centroids_used$`Centroid id`) %>%
     group_by(`Demand point id`) %>%
@@ -379,7 +388,7 @@ plot_network <- function(instance, solution) {
     theme_void() 
 }
 
-# # # TEST
+# # TEST
 # instance = generate_2d_instance(
 #   no_of_points = 100,
 #   interval = c("min" = -10, "max" = 10)

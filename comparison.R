@@ -47,6 +47,10 @@ WCSS <- function(solution) {
     as.numeric()
 }
 
+number_of_centroids <- function(solution) {
+  length(unique(solution$instance$`Centroid id`))
+}
+
 #' For each solution load the object and calculate all objective functions
 #' then save as a row in a table. Can be easily parallelized to save time.
 #' Get instance id, solution method and objective function from file name.
@@ -68,18 +72,24 @@ calc_obj <- function(file) {
     method,
     obj,
     ARV = ARV(solution),
-    TOT = TOT(solution),
     SAFE = SAFE(solution),
-    WCSS = WCSS(solution)
+    TOT = TOT(solution),
+    WCSS = WCSS(solution),
+    number_of_centroids = number_of_centroids(solution)
   )
 }
 
-result <- do.call(bind_rows, lapply(sol_files %>% as.list(), calc_obj))
+result <- do.call(bind_rows, pbapply::pblapply(sol_files %>% as.list(), calc_obj))
 
 result_mean <- result %>%
+  # filter(!is.na(ARV)) %>%
   group_by(method, obj) %>%
   summarise(ARV = mean(ARV),
-            TOT = mean(TOT),
             SAFE = mean(SAFE),
+            TOT = mean(TOT),
             WCSS = mean(WCSS))
-xtable
+
+print(
+  xtable::xtable(result_mean, digits = c(0,0,0,5,2,2,2)),
+  include.rownames = F
+)
