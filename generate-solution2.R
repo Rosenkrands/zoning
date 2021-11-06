@@ -27,7 +27,7 @@ parallel::stopCluster(cl)
 # construct all combinations of instances and solution methods
 
 params <- bind_rows(
-  # expand.grid(names(instances),c("GA"),c("ARV", "SAFE", "TOT")),
+  expand.grid(names(instances),c("GA"),c("ARV", "SAFE", "TOT")),
   expand.grid(names(instances),c("KM"), c("WCSS"))
 ) %>%
   rename(instance = Var1, Method = Var2, Obj = Var3) %>%

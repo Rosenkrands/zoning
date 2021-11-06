@@ -96,7 +96,7 @@ grid_centroids <- function(
   return(list("locations" = locations, "distances" = distances, "no_of_centroids" = dimension^2))
 }
 
-solve_ga <- function(instance, centroids, no_of_centers = 5, obj = c("ARV", "TOT", "SAFE")) {
+solve_ga <- function(instance, centroids, no_of_centers = 5, obj = c("ARV", "TOT", "SAFE"), miter = 100) {
   bit_to_cent <- function(bitstring) {
     tibble::tibble(
       `Centroid id` = as.character(1:length(bitstring) * bitstring)
@@ -206,7 +206,7 @@ solve_ga <- function(instance, centroids, no_of_centers = 5, obj = c("ARV", "TOT
   }
   ga_model <- GA::ga(
     type="binary", fitness=eval_func, nBits=centroids$no_of_centroids,
-    popSize=100, pmutation=0.1, maxiter=100, parallel = T
+    popSize=100, pmutation=0.1, maxiter=miter, parallel = T
   )
   
   centroids_used <- bit_to_cent(summary(ga_model)$solution[1,])
