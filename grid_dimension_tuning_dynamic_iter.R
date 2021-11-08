@@ -5,7 +5,7 @@
 source('2d-instance.R')
 
 # Here we set the dimensions for the GA to use
-dimensions <- seq(6,10,1)
+dimensions <- seq(3,10,1)
 
 files <- list.files('./instances')
 direcs <- as.list(files)
@@ -41,7 +41,7 @@ parallel::stopCluster(cl)
 # construct all combinations of instances and solution methods
 
 params <- bind_rows(
-  expand.grid(names(instances),c("GA"),c("TOT"), dimensions,c("Dynamic")),
+  expand.grid(names(instances),c("GA"),c("TOT"), dimensions,c("Dynamic2")),
   # expand.grid(names(instances),c("KM"), c("WCSS"), c(NA), c(NA))
 ) %>%
   rename(instance = Var1, Method = Var2, Obj = Var3, dimension = Var4, miter = Var5) %>%
@@ -72,7 +72,7 @@ solve_n_save <- function(param) {
   
   file = paste0(
     './dimension_tuning/',instance,'_',
-    method,'_',obj,'_',dimension,'_',"Dynamic",'_',sol_id,'.rds'
+    method,'_',obj,'_',dimension,'_',"Dynamic2",'_',sol_id,'.rds'
   )
   
   if (file.exists(file)) {cat("File exists, continuing...\n"); return()}
@@ -87,7 +87,7 @@ solve_n_save <- function(param) {
       centroids[[instance]][[dimension]], 
       no_of_centers = ncent, 
       obj = obj,
-      miter = miter
+      miter = miter*2
     )
     sink()
   }
