@@ -111,3 +111,19 @@ ggplot() +
            label = "Dotted line show KMeans TOT") +
   theme_bw()
 
+km_data <- result_clean %>% filter(method == "KM")
+
+ga_data <- result_clean %>%
+  filter(method != "KM") %>%
+  left_join(km_data %>% select(instance, TOT), 
+            by = "instance", suffix = c(".ga", ".km")) %>%
+  mutate(TOT_gap = (TOT.km - TOT.ga)) %>%
+  group_by(method, obj, dimension, miter) %>%
+  summarise(TOT_gap = mean(TOT_gap)) %>%
+  pivot_wider(id_cols = c(method, obj, miter, dimension), 
+              names_from = dimension, values_from = TOT_gap) %>%
+  select(method, obj, miter, `3`,`4`,`5`,`6`,`7`,`8`,`9`,`10`) %>%
+  arrange(miter)
+
+print(xtable::xtable(ga_data, digits = c(3)), include.rownames = F)
+
