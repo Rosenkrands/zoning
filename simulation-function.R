@@ -2,7 +2,7 @@ rm(list = ls())
 source('2d-instance.R')
 
 simulation <- function(
-  instance, centroids = NULL, solution, method = c("GA","KMeans")
+  instance, solution, method = c("GA","KMeans")
 ) {
   # Setting parameters for later use, maybe unneccesary
   nReplications = 3 
@@ -44,18 +44,19 @@ simulation <- function(
   }
   
   if (method == "GA") {
-    # Update instance data to include zone for each demand point
-    assignment <- centroids$distances %>%
-      inner_join(solution$centroids, by = "Centroid id") %>%
-      group_by(`Demand point id`) %>%
-      filter(Distance == min(Distance)) %>%
-      ungroup()
-    
-    instance$data <- instance$data %>% left_join(
-      assignment %>% select(
-        `Demand point id`, `Centroid id`
-      ), by = "Demand point id"
-    )  
+    # # Update instance data to include zone for each demand point
+    # assignment <- centroids$distances %>%
+    #   inner_join(solution$centroids, by = "Centroid id") %>%
+    #   group_by(`Demand point id`) %>%
+    #   filter(Distance == min(Distance)) %>%
+    #   ungroup()
+    # 
+    # instance$data <- instance$data %>% left_join(
+    #   assignment %>% select(
+    #     `Demand point id`, `Centroid id`
+    #   ), by = "Demand point id"
+    # )  
+    instance$data <- solution$instance
   } else if (method == "KMeans") {
     instance$data$`Centroid id` <- solution$clustering_vector
   }
@@ -258,8 +259,8 @@ simulation <- function(
 # 
 # centroids = grid_centroids(instance, dimension = 4)
 # 
-# solution = solve_ga(instance, centroids)
+# solution = solve_ga(instance, centroids, miter = 5)
 # # solution = solve_kmeans(instance, no_of_centers = 5)
 # 
-# sim_result <- simulation(instance, centroids, solution, method = "GA")
+# sim_result <- simulation(instance, solution, method = "GA")
 # # sim_result <- simulation(instance, solution = solution, method = "KMeans")
