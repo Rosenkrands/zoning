@@ -62,6 +62,7 @@ calc_obj <- function(file) {
   solution <- readRDS(paste0('./dimension_tuning/',file))
   
   tibble(
+    file = file,
     instance = instance_id,
     method,
     obj,
