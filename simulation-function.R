@@ -2,14 +2,14 @@ rm(list = ls())
 source('2d-instance.R')
 
 simulation <- function(
-  instance, solution, method = c("GA","KMeans")
+  solution, method = c("GA","KMeans")
 ) {
   # Setting parameters for later use, maybe unneccesary
   nReplications = 3 
   LOS = 100 # Length of simulation
   
-  nDemands = nrow(instance$data)
-  totaldemandrate = sum(instance$data$`Arrival rate`)
+  nDemands = nrow(solution$instance)
+  totaldemandrate = sum(solution$instance$`Arrival rate`)
   
   if (method == "GA") {
     nAgents = nrow(solution$centroids)
@@ -43,34 +43,34 @@ simulation <- function(
     return(((x1-x2)^2 +(y1-y2)^2)^0.5)
   }
   
-  if (method == "GA") {
-    # # Update instance data to include zone for each demand point
-    # assignment <- centroids$distances %>%
-    #   inner_join(solution$centroids, by = "Centroid id") %>%
-    #   group_by(`Demand point id`) %>%
-    #   filter(Distance == min(Distance)) %>%
-    #   ungroup()
-    # 
-    # instance$data <- instance$data %>% left_join(
-    #   assignment %>% select(
-    #     `Demand point id`, `Centroid id`
-    #   ), by = "Demand point id"
-    # )  
-    instance$data <- solution$instance
-  } else if (method == "KMeans") {
-    instance$data$`Centroid id` <- solution$clustering_vector
-  }
+  # if (method == "GA") {
+  #   # # Update instance data to include zone for each demand point
+  #   # assignment <- centroids$distances %>%
+  #   #   inner_join(solution$centroids, by = "Centroid id") %>%
+  #   #   group_by(`Demand point id`) %>%
+  #   #   filter(Distance == min(Distance)) %>%
+  #   #   ungroup()
+  #   # 
+  #   # instance$data <- instance$data %>% left_join(
+  #   #   assignment %>% select(
+  #   #     `Demand point id`, `Centroid id`
+  #   #   ), by = "Demand point id"
+  #   # )  
+  #   instance$data <- solution$instance
+  # } else if (method == "KMeans") {
+  #   instance$data$`Centroid id` <- solution$clustering_vector
+  # }
   
   getNearestAgent <- function(demandid, agentList){
-    x = as.numeric(instance$data[
-      instance$data$`Demand point id` == demandid, "x"
+    x = as.numeric(solution$instance[
+      solution$instance$`Demand point id` == demandid, "x"
     ])
-    y = as.numeric(instance$data[
-      instance$data$`Demand point id` == demandid, "y"
+    y = as.numeric(solution$instance[
+      solution$instance$`Demand point id` == demandid, "y"
     ])
     df_temp <- data.frame(id = agentList$id, dist = rep(0, nrow(agentList)))
-    demandid_zone <- instance$data[
-      instance$data$`Demand point id` == demandid, 'Centroid id'
+    demandid_zone <- solution$instance[
+      solution$instance$`Demand point id` == demandid, 'Centroid id'
     ] %>% as.character()
     for (i in 1:nrow(agentList)){
       if (
@@ -103,7 +103,7 @@ simulation <- function(
   }
   
   # For now
-  df_demandpoints = instance$data %>%
+  df_demandpoints = solution$instance %>%
     rename(X = x, Y = y)
   
   metric_list <- list()
@@ -262,5 +262,5 @@ simulation <- function(
 # solution = solve_ga(instance, centroids, miter = 5)
 # # solution = solve_kmeans(instance, no_of_centers = 5)
 # 
-# sim_result <- simulation(instance, solution, method = "GA")
+# sim_result <- simulation(solution = solution, method = "GA")
 # # sim_result <- simulation(instance, solution = solution, method = "KMeans")
