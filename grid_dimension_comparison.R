@@ -17,6 +17,21 @@ data <- result_clean %>%
   summarise(across(c(ARV, TOT, WCSS), mean)) %>%
   mutate(dimension = as.numeric(dimension))
 
+# checking instances where ga is better than kmeans, might need to increase nstart
+per_instance <- 
+  result_clean %>%
+  group_by(instance, method) %>%
+  slice_min(TOT, n = 1) %>%
+  filter(row_number() == 1)
+
+per_instance %>%
+  select(instance, method, TOT) %>%
+  pivot_wider(id_cols = c(-TOT), values_from = TOT, names_from = method) %>%
+  mutate(gap = GA - KM)
+  
+ggplot(per_instance) +
+  geom_point(aes(x = instance, y = TOT, color = method), position = "dodge")
+
 km_tot <- data %>% 
   filter(method == "KM") %>%
   ungroup() %>%
