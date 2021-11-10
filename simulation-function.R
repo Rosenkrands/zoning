@@ -1,12 +1,12 @@
-rm(list = ls())
+# rm(list = ls())
 source('2d-instance.R')
 
 simulation <- function(
   solution, method = c("GA","KMeans")
 ) {
-  # Setting parameters for later use, maybe unneccesary
-  nReplications = 3 
-  LOS = 100 # Length of simulation
+  # Setting parameters for later use
+  nReplications = 1
+  LOS = 28800 # Length of simulation
   
   nDemands = nrow(solution$instance)
   totaldemandrate = sum(solution$instance$`Arrival rate`)
@@ -169,7 +169,7 @@ simulation <- function(
              
              "Move"={
                movingAgents = agentList[(agentList$status == "BUSY" | agentList$status == "BACK"), ]
-               speedAgent= .5 # movement per time unit
+               speedAgent=.025 # movement per time unit
                if(nrow(movingAgents)>0){
                  for(i in 1:nrow(movingAgents)){
                    agent_id = movingAgents$id[i]
@@ -197,7 +197,7 @@ simulation <- function(
                        agentList$goalX[agent_id] = agentBaseInfo$X[agent_id]
                        agentList$goalY[agent_id] = agentBaseInfo$Y[agent_id]
                      }
-                     else { # return to its base
+                     else { # Agent returned to its base
                        cat(sprintf("Agent %s\t", agent_id), sprintf(" returns its home base at time %s\n", tNow))
                        # update agent usage data
                        agentPerformance$totalUsage[agent_id] <- agentPerformance$totalUsage[agent_id]  + (tNow - agentList$tDeployed[agent_id])
@@ -220,12 +220,22 @@ simulation <- function(
       eventList <- eventList[order(eventList$time),]
     }
     
+    first_demand <- agentLog %>% 
+      select(time) %>%
+      filter(time != -1) %>% unique() %>%
+      filter(time == min(time)) %>% as.numeric()
+    
+    first_row <- agentLog %>% filter(time == -1)
+    for (i in 1:first_demand) {
+      missing <- rbind(missing, first_row %>% mutate(time = i - 1)) 
+    }
+    
     # Calculate distance between agents at any given time
     locations <- agentLog %>%
       select(id, x = Xnow, y = Ynow, time)
-    
+
     combinations <- combn(unique(locations$id), 2) %>% t()
-    
+
     dist_calc = function(points, t) {
       locations_temp <- locations %>% filter(time == t)
       # print(locations_temp)
@@ -236,8 +246,8 @@ simulation <- function(
         )
       )
     }
-    
-    distances <- tibble(id1 = rep(combinations[,1],length(unique(locations$time))), 
+
+    distances <- tibble(id1 = rep(combinations[,1],length(unique(locations$time))),
                         id2 = rep(combinations[,2],length(unique(locations$time))),
                         time = sort(rep(seq(-1, length(unique(locations$time)) - 2), length(combinations[,1])))) %>%
       rowwise() %>%
