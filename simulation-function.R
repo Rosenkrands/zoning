@@ -2,7 +2,7 @@
 source('2d-instance.R')
 
 simulation <- function(
-  solution, method = c("GA","KMeans")
+  solution, method = c("GA","KMeans"), flight = c("zoned", "free")
 ) {
   # Setting parameters for later use
   nReplications = 1
@@ -61,44 +61,71 @@ simulation <- function(
   #   instance$data$`Centroid id` <- solution$clustering_vector
   # }
   
-  getNearestAgent <- function(demandid, agentList){
-    x = as.numeric(solution$instance[
-      solution$instance$`Demand point id` == demandid, "x"
-    ])
-    y = as.numeric(solution$instance[
-      solution$instance$`Demand point id` == demandid, "y"
-    ])
-    df_temp <- data.frame(id = agentList$id, dist = rep(0, nrow(agentList)))
-    demandid_zone <- solution$instance[
-      solution$instance$`Demand point id` == demandid, 'Centroid id'
-    ] %>% as.character()
-    for (i in 1:nrow(agentList)){
-      if (
-        if (method == "GA"){
-          demandid_zone == agentBaseInfo[
-            agentBaseInfo$id == agentList$id[i], "Centroid.id"
-          ]  
-        } else if (method == "KMeans") {
-          demandid_zone == agentBaseInfo[agentBaseInfo$id == agentList$id[i], "id"]
+  if (flight == "zoned") {
+    getNearestAgent <- function(demandid, agentList){
+      x = as.numeric(solution$instance[
+        solution$instance$`Demand point id` == demandid, "x"
+      ])
+      y = as.numeric(solution$instance[
+        solution$instance$`Demand point id` == demandid, "y"
+      ])
+      df_temp <- data.frame(id = agentList$id, dist = rep(0, nrow(agentList)))
+      demandid_zone <- solution$instance[
+        solution$instance$`Demand point id` == demandid, 'Centroid id'
+      ] %>% as.character()
+      for (i in 1:nrow(agentList)){
+        if (
+          if (method == "GA"){
+            demandid_zone == agentBaseInfo[
+              agentBaseInfo$id == agentList$id[i], "Centroid.id"
+            ]  
+          } else if (method == "KMeans") {
+            demandid_zone == agentBaseInfo[agentBaseInfo$id == agentList$id[i], "id"]
+          }
+        ) {
+          df_temp$dist[i] = if_else(
+            agentList$status[i] == "IDLE", 
+            getDistance(x,y, agentList$Xnow[i], agentList$Ynow[i]), 
+            1000000
+          )
         }
-      ) {
+        else {
+          df_temp$dist[i] = 1000000
+        }
+      }
+      df_temp <- df_temp[sample(nrow(df_temp)), ] # to avoid selection with lowest id. 
+      df_temp <- df_temp[order(df_temp$dist), ]  # sort the list by distance
+      if (df_temp[1,2] < 1000000){
+        return (df_temp[1,1]) # return agent id
+      } 
+      else {# all agents are busy
+        return(0)
+      }
+    }
+  } else if (flight == "free") {
+    getNearestAgent <- function(demandid, agentList){
+      x = as.numeric(solution$instance[
+        solution$instance$`Demand point id` == demandid, "x"
+      ])
+      y = as.numeric(solution$instance[
+        solution$instance$`Demand point id` == demandid, "y"
+      ])
+      df_temp <- data.frame(id = agentList$id, dist = rep(0, nrow(agentList)))
+      for (i in 1:nrow(agentList)){
         df_temp$dist[i] = if_else(
           agentList$status[i] == "IDLE", 
           getDistance(x,y, agentList$Xnow[i], agentList$Ynow[i]), 
           1000000
         )
       }
-      else {
-        df_temp$dist[i] = 1000000
+      df_temp <- df_temp[sample(nrow(df_temp)), ] # to avoid selection with lowest id. 
+      df_temp <- df_temp[order(df_temp$dist), ]  # sort the list by distance
+      if (df_temp[1,2] < 1000000){
+        return (df_temp[1,1]) # return agent id
+      } 
+      else {# all agents are busy
+        return(0)
       }
-    }
-    df_temp <- df_temp[sample(nrow(df_temp)), ] # to avoid selection with lowest id. 
-    df_temp <- df_temp[order(df_temp$dist), ]  # sort the list by distance
-    if (df_temp[1,2] < 1000000){
-      return (df_temp[1,1]) # return agent id
-    } 
-    else {# all agents are busy
-      return(0)
     }
   }
   
@@ -110,7 +137,7 @@ simulation <- function(
   agentLog_list <- list()
   
   for (n in 1:nReplications){
-    cat(sprintf("Replication = : %s\n", n))
+    # cat(sprintf("Replication = : %s\n", n))
     # Initialize an agent list (assume they are at 0,0 at the beginning)
     agentList = data.frame(id = agentBaseInfo$id, 
                            Xnow = agentBaseInfo$X, 
@@ -138,7 +165,7 @@ simulation <- function(
       eventNow <- eventList[1,]      
       eventList <- eventList[-c(1),]
       tNow = eventNow$time
-      cat(sprintf("EVENT = : %s\t", eventNow$event), sprintf("Time = : %s\n", tNow))
+      # cat(sprintf("EVENT = : %s\t", eventNow$event), sprintf("Time = : %s\n", tNow))
       
       switch(as.character(eventNow$event), 
              "Call"={
@@ -188,7 +215,7 @@ simulation <- function(
                      agentList$Xnow[agent_id]  = agentList$goalX[agent_id]
                      agentList$Ynow[agent_id]  = agentList$goalY[agent_id]
                      if (agentList$status[agent_id] == "BUSY"){ # arrived at the demand point
-                       cat(sprintf("Agent %s\t", agent_id), sprintf(" arrived at demand point %s ", agentList$demand_id_handling[agent_id]), sprintf("at time %s\n", tNow))
+                       # cat(sprintf("Agent %s\t", agent_id), sprintf(" arrived at demand point %s ", agentList$demand_id_handling[agent_id]), sprintf("at time %s\n", tNow))
                        # Record demand performance
                        demandPerformance$totalResponseTime[agentList$demand_id_handling[agent_id]] <-  demandPerformance$totalResponseTime[agentList$demand_id_handling[agent_id]]+ (tNow-agentList$tDeployed[agent_id]) 
                        
@@ -198,7 +225,7 @@ simulation <- function(
                        agentList$goalY[agent_id] = agentBaseInfo$Y[agent_id]
                      }
                      else { # Agent returned to its base
-                       cat(sprintf("Agent %s\t", agent_id), sprintf(" returns its home base at time %s\n", tNow))
+                       # cat(sprintf("Agent %s\t", agent_id), sprintf(" returns its home base at time %s\n", tNow))
                        # update agent usage data
                        agentPerformance$totalUsage[agent_id] <- agentPerformance$totalUsage[agent_id]  + (tNow - agentList$tDeployed[agent_id])
                        # update agent status
@@ -220,15 +247,22 @@ simulation <- function(
       eventList <- eventList[order(eventList$time),]
     }
     
-    first_demand <- agentLog %>% 
+    first_demand <- agentLog %>%
       select(time) %>%
       filter(time != -1) %>% unique() %>%
       filter(time == min(time)) %>% as.numeric()
-    
+
     first_row <- agentLog %>% filter(time == -1)
+    missing <- first_row[0,]
     for (i in 1:first_demand) {
-      missing <- rbind(missing, first_row %>% mutate(time = i - 1)) 
+      missing <- rbind(missing, first_row %>% mutate(time = i - 1))
     }
+    
+    agentLog <- bind_rows(
+      agentLog %>% filter(time == -1),
+      missing,
+      agentLog %>% filter(time >= first_demand)
+    )
     
     # Calculate distance between agents at any given time
     locations <- agentLog %>%
@@ -261,16 +295,29 @@ simulation <- function(
   return(list("metrics" = metric_list, "log" = agentLog_list))
 }
 
-# # TEST
+# TEST
 # instance = generate_2d_instance(
 #   no_of_points = 100,
 #   interval = c("min" = -10, "max" = 10)
 # )
 # 
-# centroids = grid_centroids(instance, dimension = 4)
+# # centroids = grid_centroids(instance, dimension = 4)
 # 
-# solution = solve_ga(instance, centroids, miter = 5)
-# # solution = solve_kmeans(instance, no_of_centers = 5)
+# # solution = solve_ga(instance, centroids, miter = 5)
+# solution = solve_kmeans(instance, no_of_centers = 5)
 # 
-# sim_result <- simulation(solution = solution, method = "GA")
-# # sim_result <- simulation(instance, solution = solution, method = "KMeans")
+# # sim_result <- simulation(solution = solution, method = "GA")
+# sim_result_zoned <- simulation(solution = solution, 
+#                          method = "KMeans", flight = "zoned")
+# sim_result_free <- simulation(solution = solution, 
+#                                method = "KMeans", flight = "free")
+# 
+# bind_rows(
+#   sim_result_free$metrics[[1]]$distance %>% mutate(flight = "free"),
+#   sim_result_zoned$metrics[[1]]$distance %>% mutate(flight = "zoned")
+# ) %>%
+#   ggplot(aes(x = distance, fill = flight)) +
+#   geom_histogram(bins = 100, color = "black") +
+#   facet_wrap(~flight, nrow = 2) +
+#   theme_bw() +
+#   theme(legend.position = "none")
