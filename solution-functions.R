@@ -59,7 +59,7 @@ calc_obj <- function(file) {
   dimension <- specification[[1]][4]
   miter <- specification[[1]][5]
   
-  solution <- readRDS(paste0('./dimension_tuning/',file))
+  solution <- readRDS(paste0('./solutions/',file))
   
   tibble(
     file = file,

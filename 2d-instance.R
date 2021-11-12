@@ -1,8 +1,10 @@
 # IDEA: should save some instances to compare on so we don't get different results
 # everytime
 
+library(Rcpp)
 library(tidyverse)
 library(ggvoronoi)
+sourceCpp(file = "safe.cpp")
 
 euclid_norm <- function(x) sqrt(sum(x^2))
 
@@ -13,7 +15,7 @@ generate_2d_instance <- function(
   id <- 1:no_of_points
   x <- runif(no_of_points, min = interval["min"], max = interval["max"])
   y <- runif(no_of_points, min = interval["min"], max = interval["max"])
-  arrival_rate <- round(runif(no_of_points, min = 1, max = 3))/100
+  arrival_rate <- 1/round(runif(no_of_points, min = 1200, max = 3600))
   data <- tibble(
     "Demand point id" = as.character(id),
     "x" = x, 
@@ -126,26 +128,11 @@ solve_ga <- function(instance, centroids, no_of_centers = 5, obj = c("ARV", "TOT
     }
   } else if (obj == "TOT") {
     function(bitstring) {
-      #if (sum(bitstring) > 5 | sum(bitstring) < 1) return(-Inf)
       centroids_used <- bit_to_cent(bitstring)
-      
-      # result <- centroids$distances %>%
-      #   filter(`Centroid id` %in% centroids_used$`Centroid id`) %>%
-      #   group_by(`Demand point id`) %>%
-      #   filter(Distance == min(Distance)) %>%
-      #   ungroup() %>%
-      #   inner_join(
-      #     select(instance$data, `Demand point id`, `Arrival rate`),
-      #     by = "Demand point id"
-      #   ) %>%
-      #   group_by(`Centroid id`) %>%
-      #   summarise(`Arrival rate variance` = var(`Arrival rate`)) %>%
-      #   summarise(MARV = mean(`Arrival rate variance`))
-      # return(-result$MARV)
       
       # Assume constant speed so time and distance are interchangable
       # Fixed service time per delivery
-      tau <- 1
+      tau <- 0
       # Punishment for unwanted centroids
       # len <- sum(bitstring) - min(no_of_centers, sum(bitstring))
       len <- abs(no_of_centers - sum(bitstring))  
@@ -184,29 +171,24 @@ solve_ga <- function(instance, centroids, no_of_centers = 5, obj = c("ARV", "TOT
                       by = "Demand point id"
                   ) %>%
                   group_by(`Centroid id`)
-              dist_temp <- vector(length = length(result$Distance))
-                for (i in 1:length(result$Distance)) {
-                    for (j in 1:length(result$Distance)) {
-                        if (result$`Centroid id`[i] == result$`Centroid id`[j]) {dist_temp[j] <- Inf}
-                        else {
-                            dist_temp[j] <- euclid_norm(c(result$x[i],result$y[i])-c(result$x[j],result$y[j]))
-                        }
-                    }
-                  result$Distance[i] <- min(dist_temp)
-                  # if (min(dist_temp) == 0) cat(i, j, min(dist_temp), '\n')
-                }  
-              # cat("Value is", min(result$Distance), "\n")
-              # if (min(result$Distance) == Inf) {
-              #   return(-Inf)
-              # } else {
-              #   return(min(result$Distance) - len*1000)
-              # }
-              return(min(result$Distance) - len*1000)
+              # To be replaced by Rcpp
+              # dist_temp <- vector(length = length(result$Distance))
+              #   for (i in 1:length(result$Distance)) {
+              #       for (j in 1:length(result$Distance)) {
+              #           if (result$`Centroid id`[i] == result$`Centroid id`[j]) {dist_temp[j] <- Inf}
+              #           else {
+              #               dist_temp[j] <- euclid_norm(c(result$x[i],result$y[i])-c(result$x[j],result$y[j]))
+              #           }
+              #       }
+              #     result$Distance[i] <- min(dist_temp)
+              #   }
+              # Rcpp::sourceCpp(file = "safe.cpp")
+              return(distC(result %>% data.matrix) - len*1000)
           }
   }
   ga_model <- GA::ga(
     type="binary", fitness=eval_func, nBits=centroids$no_of_centroids,
-    popSize=100, pmutation=0.1, maxiter=miter, parallel = T
+    popSize=100, pmutation=0.1, maxiter=miter, parallel = F
   )
   
   centroids_used <- bit_to_cent(summary(ga_model)$solution[1,])
@@ -389,20 +371,20 @@ plot_network <- function(instance, solution) {
 }
 
 # # TEST
-# instance = generate_2d_instance(
-#   no_of_points = 100,
-#   interval = c("min" = -10, "max" = 10)
-# )
-# 
-# # plot_2d(instance, centroids, solution, type = "point")
-# 
-# centroids = grid_centroids(instance, dimension = 5)
-# 
-# # plot_2d(instance, centroids, solution, type = "centroid")
-# 
-# solution_ga <- solve_ga(instance, centroids, no_of_centers = 5, obj = "SAFE")
-# solution_km <- solve_kmeans(instance, no_of_centers = 5)
-# 
-# plot_2d(instance, centroids, solution, type = "chosen")
-# plot_2d(instance, centroids, solution, type = "group")
-# plot_2d(instance, centroids, solution, type = "voronoi")
+instance = generate_2d_instance(
+  no_of_points = 100,
+  interval = c("min" = -10, "max" = 10)
+)
+
+# plot_2d(instance, centroids, solution, type = "point")
+
+centroids = grid_centroids(instance, dimension = 5)
+
+# plot_2d(instance, centroids, solution, type = "centroid")
+
+solution_ga <- solve_ga(instance, centroids, no_of_centers = 5, obj = "SAFE")
+solution_km <- solve_kmeans(instance, no_of_centers = 5)
+
+plot_2d(instance, centroids, solution, type = "chosen")
+plot_2d(instance, centroids, solution, type = "group")
+plot_2d(instance, centroids, solution, type = "voronoi")
