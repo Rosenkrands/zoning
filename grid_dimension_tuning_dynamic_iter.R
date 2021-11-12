@@ -41,13 +41,13 @@ parallel::stopCluster(cl)
 # construct all combinations of instances and solution methods
 
 params <- bind_rows(
-  expand.grid(names(instances),c("GA"),c("TOT"), dimensions,c("Dynamic2")),
+  expand.grid(names(instances),c("GA"),c("SAFE","TOT"), dimensions,c("run500")),
   # expand.grid(names(instances),c("KM"), c("WCSS"), c(NA), c(NA))
 ) %>%
   rename(instance = Var1, Method = Var2, Obj = Var3, dimension = Var4, miter = Var5) %>%
   tibble() %>%
-  mutate(across(everything(), as.character)) %>%
-  arrange(desc(dimension))
+  mutate(across(everything(), as.character)) %>% 
+  arrange(as.numeric(dimension))
 
 params_list <- split(params, 1:nrow(params))
 
@@ -65,14 +65,14 @@ solve_n_save <- function(param) {
   dimension <- as.character(param$dimension); 
   
   # dynamic iterations
-  miter <- dynamic_iter(as.numeric(dimension))
+  # miter <- dynamic_iter(as.numeric(dimension))
   # cat('\n','Dimension is', dimension, 'Dynamic iterations is', miter, '\n')
   
   sol_id <- paste0(sample(c(0:9, LETTERS[1:6]), 5, T), collapse = '')
   
   file = paste0(
-    './dimension_tuning/',instance,'_',
-    method,'_',obj,'_',dimension,'_',"Dynamic2",'_',sol_id,'.rds'
+    './solutions/',instance,'_',
+    method,'_',obj,'_',dimension,'_',"run500",'_',sol_id,'.rds'
   )
   
   if (file.exists(file)) {cat("File exists, continuing...\n"); return()}
@@ -80,14 +80,14 @@ solve_n_save <- function(param) {
   if (method == "KM") {
     solution <- solve_kmeans(instances[[instance]], no_of_centers = ncent)
   } else if (method == "GA") {
-    cat(instance, dimension, miter, '\n')
+    cat(instance, dimension, 100000, '\n')
     sink("./log.txt")
     solution <- solve_ga(
       instances[[instance]], 
       centroids[[instance]][[dimension]], 
       no_of_centers = ncent, 
       obj = obj,
-      miter = miter*2
+      miter = 100000
     )
     sink()
   }
@@ -96,4 +96,19 @@ solve_n_save <- function(param) {
 
 cat("Generating solutions for all combinations\n")
 print(Sys.time())
-pbapply::pblapply(params_list, solve_n_save)
+
+num_cores <- parallel::detectCores(logical = F)
+cl <- parallel::makeCluster(num_cores)
+parallel::clusterExport(cl, c('grid_centroids',
+                              'euclid_norm',
+                              'dimensions',
+                              'solve_ga',
+                              'centroids',
+                              'instances', 
+                              'solve_kmeans'))
+invisible(parallel::clusterEvalQ(cl, library(dplyr)))
+invisible(parallel::clusterEvalQ(cl, library(anRpackage)))
+
+pbapply::pblapply(params_list, solve_n_save, cl = cl)
+
+parallel::stopCluster(cl)
