@@ -1,7 +1,7 @@
 source("2d-instance.R")
 source("solution-functions.R")
 
-sol_files <- list.files('./dimension_tuning')
+sol_files <- list.files('./solutions')
 
 result <- do.call(
   bind_rows, 
@@ -9,10 +9,10 @@ result <- do.call(
 )
 
 # Clean results to reflect correct number of iterations
-result_clean <- result %>%
-  mutate(miter = replace_na(miter, 100))
+result_clean <- result #%>% mutate(miter = replace_na(miter, 100))
 
 data <- result_clean %>%
+  filter(obj == "TOT") %>%
   group_by(method,obj,dimension,miter) %>%
   summarise(across(c(ARV, TOT, WCSS), mean)) %>%
   mutate(dimension = as.numeric(dimension))
@@ -21,16 +21,16 @@ data <- result_clean %>%
 per_instance <- 
   result_clean %>%
   group_by(instance, method) %>%
-  slice_min(TOT, n = 1) %>%
+  slice_min(WCSS, n = 1) %>%
   filter(row_number() == 1)
 
 per_instance %>%
-  select(instance, method, TOT) %>%
-  pivot_wider(id_cols = c(-TOT), values_from = TOT, names_from = method) %>%
+  select(instance, method, WCSS) %>%
+  pivot_wider(id_cols = c(-WCSS), values_from = WCSS, names_from = method) %>%
   mutate(gap = GA - KM)
   
 ggplot(per_instance) +
-  geom_point(aes(x = instance, y = TOT, color = method), position = "dodge")
+  geom_point(aes(x = instance, y = WCSS, color = method))
 
 km_tot <- data %>% 
   filter(method == "KM") %>%
