@@ -197,7 +197,7 @@ solve_ga <- function(instance, centroids, no_of_centers = 5, obj = c("ARV", "TOT
 
 solve_kmeans <- function(instance, no_of_centers = 5) {
   coordinates <- instance$data %>% select(x, y)
-  centroids <- kmeans(x = coordinates, centers = no_of_centers, nstart = 20)
+  centroids <- kmeans(x = coordinates, centers = no_of_centers, nstart = 1000)
   clusters <- as.data.frame(centroids$centers)
   clustering_vector <- centroids$cluster
   

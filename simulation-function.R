@@ -196,7 +196,8 @@ simulation <- function(
              
              "Move"={
                movingAgents = agentList[(agentList$status == "BUSY" | agentList$status == "BACK"), ]
-               speedAgent=.025 # movement per time unit
+               speedAgent=.025 # movement per time unit (kilometers per second)
+               # i.e. 25 meter per second is equiv to 90 km/h (25 m/s times 3.6)
                if(nrow(movingAgents)>0){
                  for(i in 1:nrow(movingAgents)){
                    agent_id = movingAgents$id[i]
@@ -266,7 +267,8 @@ simulation <- function(
     
     # Calculate distance between agents at any given time
     locations <- agentLog %>%
-      select(id, x = Xnow, y = Ynow, time)
+      select(id, x = Xnow, y = Ynow, time) %>%
+      mutate(idt = paste0(time,'_',id))
 
     combinations <- combn(unique(locations$id), 2) %>% t()
 
@@ -281,21 +283,35 @@ simulation <- function(
       )
     }
 
-    distances <- tibble(id1 = rep(combinations[,1],length(unique(locations$time))),
+    # distances1 <- tibble(id1 = rep(combinations[,1],length(unique(locations$time))),
+    #                     id2 = rep(combinations[,2],length(unique(locations$time))),
+    #                     time = sort(rep(seq(-1, length(unique(locations$time)) - 2), length(combinations[,1])))) %>%
+    #   rowwise() %>%
+    #   mutate(distance = dist_calc(points = c(id1, id2), t = time))
+    
+    distances2 <- tibble(id1 = rep(combinations[,1],length(unique(locations$time))),
                         id2 = rep(combinations[,2],length(unique(locations$time))),
                         time = sort(rep(seq(-1, length(unique(locations$time)) - 2), length(combinations[,1])))) %>%
-      rowwise() %>%
-      mutate(distance = dist_calc(points = c(id1, id2), t = time))
+      mutate(idt1 = paste0(time, '_',id1), idt2 = paste0(time, '_',id2)) %>%
+      inner_join(locations %>% select(idt,x,y), by=c("idt1" = "idt")) %>%
+      inner_join(locations %>% select(idt,x,y), by=c("idt2" = "idt"), suffix = c(".1",".2")) %>%
+      select(-c(idt1, idt2))
+    
+    distances2 <- distances2 %>% mutate(
+      distance = distanceFunctions::simDistC(
+        distances2 %>% select(x.1, y.1, x.2, y.2) %>% data.matrix()
+      )
+    )
     
     metric_list[[n]] <- list("demandPerformance" = demandPerformance, 
                              "agentPerformance" = agentPerformance, 
-                             "distances" = distances)
+                             "distances" = distances2)
     agentLog_list[[n]] <- agentLog
   }
   return(list("metrics" = metric_list, "log" = agentLog_list))
 }
 
-# TEST
+# # TEST
 # instance = generate_2d_instance(
 #   no_of_points = 100,
 #   interval = c("min" = -10, "max" = 10)
@@ -307,11 +323,12 @@ simulation <- function(
 # solution = solve_kmeans(instance, no_of_centers = 5)
 # 
 # # sim_result <- simulation(solution = solution, method = "GA")
-# sim_result_zoned <- simulation(solution = solution, 
+# sim_result_zoned <- simulation(solution = solution,
 #                          method = "KMeans", flight = "zoned")
-# sim_result_free <- simulation(solution = solution, 
+# sim_result_free <- simulation(solution = solution,
 #                                method = "KMeans", flight = "free")
 # 
+# # histogram of safety distances
 # bind_rows(
 #   sim_result_free$metrics[[1]]$distance %>% mutate(flight = "free"),
 #   sim_result_zoned$metrics[[1]]$distance %>% mutate(flight = "zoned")
@@ -321,3 +338,47 @@ simulation <- function(
 #   facet_wrap(~flight, nrow = 2) +
 #   theme_bw() +
 #   theme(legend.position = "none")
+# 
+# # utilization
+# bind_rows(
+#   sim_result_free$log[1][[1]] %>% mutate(flight = "free"),
+#   sim_result_zoned$log[1][[1]] %>% mutate(flight = "zoned"),
+# ) %>%
+#   select(id, status, time, flight) %>%
+#   mutate(inUse = ifelse(status != "IDLE", 1, 0)) %>%
+#   group_by(flight, time) %>%
+#   summarise(inUse = mean(inUse)) %>%
+#   mutate(inUse = cumsum(inUse)) %>%
+#   ggplot(aes(x = time, y = inUse/time, color = flight)) +
+#   geom_line() +
+#   # tidyquant::geom_ma(n=30) +
+#   geom_hline(yintercept = 1, linetype="dashed") +
+#   theme_bw()
+# 
+# # effectiveness
+# bind_rows(
+#   sim_result_free$log[1][[1]] %>% mutate(flight = "free"),
+#   sim_result_zoned$log[1][[1]] %>% mutate(flight = "zoned"),
+# ) %>%
+#   select(id, status, time, flight) %>%
+#   mutate(inUse = ifelse(status != "IDLE", 1, 0)) %>%
+#   group_by(flight, time) %>%
+#   summarise(inUse = mean(inUse)) %>%
+#   mutate(inUse = cumsum(inUse)) %>%
+#   ggplot(aes(x = time, y = inUse/time, color = flight)) +
+#   geom_line() +
+#   # tidyquant::geom_ma(n=30) +
+#   geom_hline(yintercept = 1, linetype="dashed") +
+#   theme_bw()
+# 
+# # effectiveness
+# bind_rows(
+#   sim_result_free$metrics[[1]]$demandPerformance  %>%
+#     summarise(across(c(nGenerated,nCovered), sum)) %>%
+#     mutate(flight = "free"),
+#   sim_result_zoned$metrics[[1]]$demandPerformance  %>%
+#     summarise(across(c(nGenerated,nCovered), sum)) %>%
+#     mutate(flight = "zoned")
+# ) %>%
+#   mutate(`nC/nG` = nCovered / nGenerated) %>%
+#   xtable::xtable()

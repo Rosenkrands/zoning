@@ -12,18 +12,15 @@ result <- do.call(
 )
 
 # Clean results to reflect correct number of iterations
-result_clean <- result %>%
-  mutate(miter = replace_na(miter, 100))
-
-best_solutions <- result_clean %>%
-  filter(instance == '40988') %>%
+selects <- result %>%
+  filter(dimension == "10", miter == "run500") %>%
   group_by(instance, method) %>%
   slice_min(TOT,n = 1) %>%
   filter(row_number() == 1)
 
 # Load the solutions into a list, with method specified
 solutions <- pbapply::pblapply(
-  best_solutions$file %>% split(1:nrow(best_solutions)),
+  selects$file %>% split(1:nrow(selects)),
   function(file) readRDS(paste0('./solutions/',file))
 )
 

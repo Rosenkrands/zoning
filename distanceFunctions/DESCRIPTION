@@ -1,0 +1,11 @@
+Package: distanceFunctions
+Type: Package
+Title: Speed up distance calculations
+Version: 1.0
+Date: 2021-11-10
+Author: Kasper Rosenkrands
+Maintainer: Kasper Rosenkrands <krosen17@student.aau.dk>
+Description: Just some utilty functions to speed up calculatios
+License: GPL (>= 2)
+Imports: Rcpp (>= 1.0.7)
+LinkingTo: Rcpp

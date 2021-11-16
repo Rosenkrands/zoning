@@ -8,18 +8,17 @@ result <- do.call(
   pbapply::pblapply(sol_files %>% as.list(), calc_obj)
 )
 
-# Clean results to reflect correct number of iterations
-result_clean <- result #%>% mutate(miter = replace_na(miter, 100))
-
-data <- result_clean %>%
-  filter(obj == "TOT") %>%
+data <- result %>%
+  filter(miter == 'run500') %>%
+  filter((obj == "TOT") | (method == "KM")) %>%
   group_by(method,obj,dimension,miter) %>%
   summarise(across(c(ARV, TOT, WCSS), mean)) %>%
   mutate(dimension = as.numeric(dimension))
 
 # checking instances where ga is better than kmeans, might need to increase nstart
+# now increased nstart to 1000 and still see instances where GA performs better
 per_instance <- 
-  result_clean %>%
+  result %>%
   group_by(instance, method) %>%
   slice_min(WCSS, n = 1) %>%
   filter(row_number() == 1)
@@ -35,27 +34,27 @@ ggplot(per_instance) +
 km_tot <- data %>% 
   filter(method == "KM") %>%
   ungroup() %>%
-  select(TOT) %>%
+  select(WCSS) %>%
   as.numeric()
 
 ggplot() +
   geom_point(data = data %>% filter(method == "GA"),
-             aes(x = dimension, y = TOT, color=miter)) +
+             aes(x = dimension, y = WCSS)) +
   geom_line(data = data %>% filter(method == "GA"),
-             aes(x = dimension, y = TOT, color=miter)) +
+             aes(x = dimension, y = WCSS)) +
   geom_hline(yintercept = km_tot, linetype = "dashed") +
   scale_x_continuous(breaks = seq(3,10,1), labels = seq(3,10,1)) +
-  annotate("text", x = 3.8, y = km_tot+.05, size = 3.5,
-           label = "Dotted line show KMeans TOT") +
+  annotate("text", x = 4.5, y = km_tot+1, size = 3.5,
+           label = "Dotted line show KMeans WCSS") +
   theme_bw()
 
-km_data <- result_clean %>% filter(method == "KM")
+km_data <- result %>% filter(method == "KM")
 
-ga_data <- result_clean %>%
-  filter(method != "KM") %>%
+ga_data <- result %>%
+  filter(method != "KM", miter == "run500", obj == "TOT") %>%
   left_join(km_data %>% select(instance, TOT), 
             by = "instance", suffix = c(".ga", ".km")) %>%
-  mutate(TOT_gap = (TOT.km - TOT.ga)) %>%
+  mutate(TOT_gap = (TOT.ga - TOT.km)*100/TOT.ga) %>%
   group_by(method, obj, dimension, miter) %>%
   summarise(TOT_gap = mean(TOT_gap)) %>%
   pivot_wider(id_cols = c(method, obj, miter, dimension), 
@@ -63,4 +62,4 @@ ga_data <- result_clean %>%
   select(method, obj, miter, `3`,`4`,`5`,`6`,`7`,`8`,`9`,`10`) %>%
   arrange(miter)
 
-print(xtable::xtable(ga_data, digits = c(3)), include.rownames = F)
+print(xtable::xtable(ga_data, digits = c(2)), include.rownames = F)
