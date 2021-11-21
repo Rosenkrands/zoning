@@ -33,3 +33,53 @@ ggplot(
   theme_void()
 
 ggsave('plots_for_report/example_instance_w_zone.pdf',width = 4.5, height = 4)
+
+centroids <- grid_centroids(instance, dimension = 3)
+
+ggplot(
+  instance$data %>%
+    mutate(`Demand point id` = paste0("x[",`Demand point id`,"]"))
+) +
+  geom_text(aes(x,y,label=`Demand point id`), parse=T) +
+  geom_path(data = tibble(x = c(-10,10,10,-10,-10), 
+                          y = c(-10,-10,10,10,-10)) %>%
+              mutate(across(c(x,y), ~.x*1)),
+            aes(x,y)) +
+  geom_point(
+    data = centroids$locations, aes(x, y), shape = 10, size = 5
+  ) +
+  theme_void()
+
+ggsave('plots_for_report/example_instance_centroids.pdf',width = 4, height = 4)
+
+solution <- solve_ga(instance, centroids, no_of_centers = 3, obj = "TOT", miter = 10)
+
+assignment <- centroids$distances %>%
+  inner_join(solution$centroids, by = "Centroid id") %>%
+  group_by(`Demand point id`) %>%
+  filter(Distance == min(Distance)) %>%
+  ungroup() %>%
+  select(-x, -y)
+
+instance_w_assignment <- instance$data %>%
+  inner_join(assignment, by = "Demand point id")
+
+ggplot(
+  instance_w_assignment %>%
+    mutate(`Demand point id` = paste0("x[",`Demand point id`,"]"))
+) +
+  geom_segment(data = solution$instance, aes(x = x, y = y, xend = x.centroid, yend = y.centroid),
+               color = "gray") +
+  geom_text(aes(x,y,label=`Demand point id`,color=`Centroid id`), parse=T) +
+  geom_path(data = tibble(x = c(-10,10,10,-10,-10), 
+                          y = c(-10,-10,10,10,-10)) %>%
+              mutate(across(c(x,y), ~.x*1.1)),
+            aes(x,y)) +
+  geom_point(
+    data = solution$centroids, 
+    aes(x, y, color=`Centroid id`), shape = 10, size = 5
+  ) +
+  theme_void() +
+  theme(legend.position = "none")
+
+ggsave('plots_for_report/example_instance_selected_centroids.pdf',width = 4, height = 4)
