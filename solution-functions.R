@@ -19,21 +19,12 @@ TOT <- function(solution) {
 }
 
 SAFE <- function(solution) {
-  dist_temp <- vector(length = nrow(solution$instance))
-  solution$Distance <- dist_temp
-  for (i in 1:nrow(solution$instance)) {
-    for (j in 1:nrow(solution$instance)) {
-      if (solution$instance$`Centroid id`[i] == solution$instance$`Centroid id`[j]) {dist_temp[j] <- Inf}
-      else {
-        dist_temp[j] <- euclid_norm(
-          c(solution$instance$x[i],solution$instance$y[i])-
-            c(solution$instance$x[j],solution$instance$y[j])
-        )
-      }
-    }
-    solution$instance$Distance[i] <- min(dist_temp)
-  }
-  return(min(solution$instance$Distance))
+  distanceFunctions::distC(
+    solution$instance %>%
+      mutate(Distance = 99999) %>%
+      select(`Demand point id`, `Centroid id`, Distance, x, y) %>%
+      data.matrix()
+  )
 }
 
 WCSS <- function(solution) {
@@ -59,7 +50,7 @@ calc_obj <- function(file) {
   dimension <- specification[[1]][4]
   miter <- specification[[1]][5]
   
-  solution <- readRDS(paste0('./solutions/',file))
+  solution <- readRDS(paste0('./solution_for_simulation/',file))
   
   tibble(
     file = file,
@@ -69,7 +60,34 @@ calc_obj <- function(file) {
     dimension = dimension,
     miter = miter,
     ARV = ARV(solution),
-    # SAFE = SAFE(solution),
+    SAFE = SAFE(solution),
+    TOT = TOT(solution),
+    WCSS = WCSS(solution),
+    number_of_centroids = number_of_centroids(solution)
+  )
+}
+
+calc_obj2 <- function(file) {
+  clean_name <- substring(file, 1, nchar(file) - 4)
+  specification <- str_split(clean_name,'_')
+  
+  instance_id <- specification[[1]][1]
+  method <- specification[[1]][2]
+  obj <- specification[[1]][3]
+  no_of_centers <- specification[[1]][4]
+  
+  solution <- readRDS(paste0('./solution_for_simulation/',file))
+  inst <- readRDS(paste0('./instances/',instance_id,'.rds'))
+  
+  tibble(
+    file = file,
+    instance = instance_id,
+    method,
+    obj,
+    no_of_centers = no_of_centers,
+    ar_var = inst$arv['max'] %>% as.numeric() - inst$arv['min'] %>% as.numeric(),
+    ARV = ARV(solution),
+    SAFE = SAFE(solution),
     TOT = TOT(solution),
     WCSS = WCSS(solution),
     number_of_centroids = number_of_centroids(solution)

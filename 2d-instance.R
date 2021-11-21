@@ -1,21 +1,20 @@
 # IDEA: should save some instances to compare on so we don't get different results
 # everytime
 
-library(Rcpp)
 library(tidyverse)
 library(ggvoronoi)
-sourceCpp(file = "safe.cpp")
 
 euclid_norm <- function(x) sqrt(sum(x^2))
 
 generate_2d_instance <- function(
   no_of_points = 50, 
-  interval = c("min" = -10, "max" = 10)
+  interval = c("min" = -10, "max" = 10),
+  arv = c("min" = 20, "max" = 60)
 ) {
   id <- 1:no_of_points
   x <- runif(no_of_points, min = interval["min"], max = interval["max"])
   y <- runif(no_of_points, min = interval["min"], max = interval["max"])
-  arrival_rate <- 1/round(runif(no_of_points, min = 1200, max = 3600))
+  arrival_rate <- 1/round(runif(no_of_points, min = arv["min"]*60, max = arv["max"]*60))
   data <- tibble(
     "Demand point id" = as.character(id),
     "x" = x, 
@@ -23,7 +22,8 @@ generate_2d_instance <- function(
     "Arrival rate" = arrival_rate
   ) %>%
     mutate(prob = cumsum(`Arrival rate`/sum(`Arrival rate`)))
-  results <- list("data" = data, "interval" = interval, "no_of_points" = no_of_points)
+  results <- list("data" = data, "interval" = interval, 
+                  "no_of_points" = no_of_points, "arv" = arv)
   return(results)
 }
 
@@ -107,7 +107,7 @@ solve_ga <- function(instance, centroids, no_of_centers = 5, obj = c("ARV", "TOT
   
   eval_func <- if (obj == "ARV") {
     function(bitstring) {
-      # if (sum(bitstring) > 5) return(-1)
+      if (sum(bitstring) < 2) {return(-Inf)}
       centroids_used <- bit_to_cent(bitstring)
       
       # len <- sum(bitstring) - min(no_of_centers, sum(bitstring))
@@ -128,6 +128,7 @@ solve_ga <- function(instance, centroids, no_of_centers = 5, obj = c("ARV", "TOT
     }
   } else if (obj == "TOT") {
     function(bitstring) {
+      if (sum(bitstring) < 2) {return(-Inf)}
       centroids_used <- bit_to_cent(bitstring)
       
       # Assume constant speed so time and distance are interchangable
@@ -157,8 +158,7 @@ solve_ga <- function(instance, centroids, no_of_centers = 5, obj = c("ARV", "TOT
             
               centroids_used <- bit_to_cent(bitstring)
               points <- instance$data %>% 
-                  select(`Demand point id`, x, y)
-              points_dist <- dist(points)
+                select(`Demand point id`, x, y)
               # Computation of objective value
               result <- centroids$distances %>%
                   filter(`Centroid id` %in% centroids_used$`Centroid id`) %>%
@@ -170,7 +170,7 @@ solve_ga <- function(instance, centroids, no_of_centers = 5, obj = c("ARV", "TOT
                       by = "Demand point id"
                   ) %>%
                   group_by(`Centroid id`)
-              return(distC(result %>% data.matrix) - len*1000)
+              return(distanceFunctions::distC(result %>% data.matrix) - len*1000)
           }
   }
   ga_model <- GA::ga(

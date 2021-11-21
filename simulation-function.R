@@ -1,11 +1,12 @@
 # rm(list = ls())
 source('2d-instance.R')
+set.seed(110520)
 
 simulation <- function(
   solution, method = c("GA","KMeans"), flight = c("zoned", "free")
 ) {
   # Setting parameters for later use
-  nReplications = 1
+  nReplications = 20
   LOS = 28800 # Length of simulation
   
   nDemands = nrow(solution$instance)
@@ -42,24 +43,6 @@ simulation <- function(
   getDistance <- function (x1, y1, x2, y2){
     return(((x1-x2)^2 +(y1-y2)^2)^0.5)
   }
-  
-  # if (method == "GA") {
-  #   # # Update instance data to include zone for each demand point
-  #   # assignment <- centroids$distances %>%
-  #   #   inner_join(solution$centroids, by = "Centroid id") %>%
-  #   #   group_by(`Demand point id`) %>%
-  #   #   filter(Distance == min(Distance)) %>%
-  #   #   ungroup()
-  #   # 
-  #   # instance$data <- instance$data %>% left_join(
-  #   #   assignment %>% select(
-  #   #     `Demand point id`, `Centroid id`
-  #   #   ), by = "Demand point id"
-  #   # )  
-  #   instance$data <- solution$instance
-  # } else if (method == "KMeans") {
-  #   instance$data$`Centroid id` <- solution$clustering_vector
-  # }
   
   if (flight == "zoned") {
     getNearestAgent <- function(demandid, agentList){
@@ -157,8 +140,8 @@ simulation <- function(
     eventList = data.frame(event = character(), time = numeric(), agentid = numeric(), demandid = numeric())
     tNext = round(rexp(1, totaldemandrate)) # Sample next demand arrival time
     demand_id = getDemandpointID(df_demandpoints$prob) # assign demend points based on their demand rates
-    eventList <-rbind(eventList, data.frame(event = c("Call"), time = c(tNext), demandid = c(demand_id))) # put the first event into the eventlist
-    eventList <-rbind(eventList, data.frame(event = c("Move"), time = c(tNext), demandid = c(0))) # put the "move" event into the eventlist
+    eventList <-bind_rows(eventList, data.frame(event = c("Call"), time = c(tNext), demandid = c(demand_id))) # put the first event into the eventlist
+    eventList <-bind_rows(eventList, data.frame(event = c("Move"), time = c(tNext), demandid = c(0))) # put the "move" event into the eventlist
     tNow = tNext
     while(nrow(eventList)>0 && tNow <LOS){
       # Extract the current event from the list and remove the event from the list
@@ -191,7 +174,7 @@ simulation <- function(
                # Generate next call
                tNext = tNow + round(rexp(1, totaldemandrate)) 
                demand_id = getDemandpointID(df_demandpoints$prob)
-               eventList <-rbind(eventList, data.frame(event = c("Call"), time = c(tNext), demandid = c(demand_id)))
+               eventList <-bind_rows(eventList, data.frame(event = c("Call"), time = c(tNext), demandid = c(demand_id)))
              },
              
              "Move"={
@@ -237,8 +220,8 @@ simulation <- function(
                  }
                }
                # Generate next "Move" event
-               eventList <-rbind(eventList, data.frame(event = c("Move"), time = c(tNow+1), demandid = c(0)))
-               agentLog <- rbind(agentLog, agentList %>% mutate(time = tNow))
+               eventList <-bind_rows(eventList, data.frame(event = c("Move"), time = c(tNow+1), demandid = c(0)))
+               agentLog <- bind_rows(agentLog, agentList %>% mutate(time = tNow))
              },
              {
                print('A wrong event generated')
@@ -256,7 +239,7 @@ simulation <- function(
     first_row <- agentLog %>% filter(time == -1)
     missing <- first_row[0,]
     for (i in 1:first_demand) {
-      missing <- rbind(missing, first_row %>% mutate(time = i - 1))
+      missing <- bind_rows(missing, first_row %>% mutate(time = i - 1))
     }
     
     agentLog <- bind_rows(
@@ -333,9 +316,10 @@ simulation <- function(
 #   sim_result_free$metrics[[1]]$distance %>% mutate(flight = "free"),
 #   sim_result_zoned$metrics[[1]]$distance %>% mutate(flight = "zoned")
 # ) %>%
-#   ggplot(aes(x = distance, fill = flight)) +
+#   ggplot(aes(x = distance*1000, fill = flight)) +
 #   geom_histogram(bins = 100, color = "black") +
 #   facet_wrap(~flight, nrow = 2) +
+#   scale_x_continuous(limits=c(0,3000)) +
 #   theme_bw() +
 #   theme(legend.position = "none")
 # 
