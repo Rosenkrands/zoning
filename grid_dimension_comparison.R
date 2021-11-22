@@ -34,19 +34,21 @@ ggplot(per_instance) +
 km_tot <- data %>% 
   filter(method == "KM") %>%
   ungroup() %>%
-  select(WCSS) %>%
+  select(TOT) %>%
   as.numeric()
 
 ggplot() +
   geom_point(data = data %>% filter(method == "GA"),
-             aes(x = dimension, y = WCSS)) +
+             aes(x = dimension, y = TOT)) +
   geom_line(data = data %>% filter(method == "GA"),
-             aes(x = dimension, y = WCSS)) +
+             aes(x = dimension, y = TOT)) +
   geom_hline(yintercept = km_tot, linetype = "dashed") +
   scale_x_continuous(breaks = seq(3,10,1), labels = seq(3,10,1)) +
-  annotate("text", x = 4.5, y = km_tot+1, size = 3.5,
-           label = "Dotted line show KMeans WCSS") +
+  # annotate("text", x = 4.5, y = km_tot+.001, size = 3.5,
+  #          label = "Dotted line show KMeans TOT") +
   theme_bw()
+
+ggsave('./plots_for_report/grid_dimension_comparison.pdf', width = 8, height = 3)
 
 km_data <- result %>% filter(method == "KM")
 
