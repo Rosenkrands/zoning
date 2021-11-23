@@ -1,10 +1,10 @@
 # rm(list = ls())
 source('2d-instance.R')
-set.seed(110520)
 
 simulation <- function(
   solution, method = c("GA","KMeans"), flight = c("zoned", "free")
 ) {
+  set.seed(110520)
   # Setting parameters for later use
   nReplications = 20
   LOS = 28800 # Length of simulation
