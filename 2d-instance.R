@@ -7,13 +7,16 @@ library(ggvoronoi)
 euclid_norm <- function(x) sqrt(sum(x^2))
 
 generate_2d_instance <- function(
+  seed = NULL,
   no_of_points = 50, 
   interval = c("min" = -10, "max" = 10),
   arv = c("min" = 20, "max" = 60)
 ) {
   id <- 1:no_of_points
+  set.seed(seed)
   x <- runif(no_of_points, min = interval["min"], max = interval["max"])
   y <- runif(no_of_points, min = interval["min"], max = interval["max"])
+  set.seed(NULL)
   arrival_rate <- 1/round(runif(no_of_points, min = arv["min"]*60, max = arv["max"]*60))
   data <- tibble(
     "Demand point id" = as.character(id),

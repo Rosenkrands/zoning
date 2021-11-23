@@ -1,11 +1,12 @@
 source('2d-instance.R')
 
-for (i in c(10,20,30,40)) {
-  for (j in 1:10) {
+for (i in 1:10) {
+  for (j in c(10,25,40)) {
     instance <- generate_2d_instance(
+      seed = i,
       no_of_points = 100,
-      arv = c("min" = 40 - i, "max" = 40 + i)
+      arv = c("min" = 40-j, "max" = 40+j)
     )
-    save_instance(instance)
+    saveRDS(instance, file = paste0('./instances/',i,'_',hexadec(size = 5)))
   }
 }
