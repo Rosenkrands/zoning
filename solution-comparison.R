@@ -35,15 +35,20 @@ result <- do.call(
   pbapply::pblapply(sol_files %>% as.list(), calc_obj2)
 ) 
 
-# %>% transmute(`Solution method` = paste0(method,':',obj),
-#                 `Number of UAVs` = no_of_centers,
-#                 `Arrival rate variance` = ar_var,
-#                 )
-
-data <- result %>%
-  group_by(method,obj,no_of_centers, ar_var) %>%
-  summarise(across(c(ARV, TOT, SAFE, WCSS), mean))
-
+result <- result %>% mutate(
+  `Solution method` = factor(paste0(method,':',obj),
+                             levels = c("GA:ARV", "GA:SAFE", "GA:TOT", "KM:WCSS")),
+  `Number of UAVs` = factor(as.numeric(no_of_centers),
+                            levels = c(5, 20),
+                            labels = c("low", "high")),
+  `Arrival rate variance` = factor(ar_var, 
+                                   levels = c(20,50,80),
+                                   labels = c("low", "medium", "high")),
+) %>%
+  select(-c(method, obj, no_of_centers, ar_var)) %>%
+  pivot_longer(cols = c(ARV, TOT, SAFE, WCSS), 
+               names_to = "Objective", values_to = "Objective value")
+  
 ### mean/variance plot ###
 # Each tile show an objective function, the color show the
 # objective function used for solving and shape shows method
@@ -52,49 +57,39 @@ data <- result %>%
 # NOTE: Would probably make sense to make one for both 3 and 6
 # no_of_centers. Maybe compare them individually.
 result %>%
-  # filter(no_of_centers == 3) %>%
-  pivot_longer(cols = c(ARV, TOT, SAFE, WCSS)) %>%
-  group_by(method,obj,no_of_centers, ar_var, name) %>%
-  summarise(across(value, 
+  group_by(`Solution method`,`Number of UAVs`, `Arrival rate variance`, Objective) %>%
+  summarise(across(`Objective value`, 
                    list(mean = mean, sd = sd), 
                    .names = "{.fn}")) %>%
-  ggplot(aes(x = mean, y = sd, color = paste0(method,':',obj), shape = as.character(ar_var))) +
+  ggplot(aes(x = mean, y = sd, color = `Solution method`, shape = `Arrival rate variance`)) +
   geom_point() +
-  facet_wrap(~name, scales = "free") +
+  facet_wrap(~Objective, scales = "free") +
   theme_bw()
 
 ### boxplot for the different objectives ###
 # NOTE: Would probably make sense to make one for both 3 and 6
 # no_of_centers. Maybe compare them individually.
 result %>%
-  # filter(no_of_centers == 6, ar_var != 80) %>%
-  pivot_longer(cols = c(ARV, TOT, SAFE, WCSS)) %>%
-  group_by(method,obj,no_of_centers, ar_var, name) %>%
-  summarise(across(value, 
-                   list(mean = mean, sd = sd), 
-                   .names = "{.fn}")) %>%
-  ggplot(aes(x = paste0(method,':',obj), 
-             y = mean,
-             color = method)) +
+  filter(`Arrival rate variance` == "high", `Number of UAVs` == "low") %>%
+  group_by(`Solution method`,`Number of UAVs`, `Arrival rate variance`, Objective) %>%
+  ggplot(aes(x = `Solution method`, 
+             y = `Objective value`,
+             color = `Solution method`)) +
   geom_boxplot() +
-  facet_wrap(~name, scales = "free") +
+  facet_wrap(~Objective, scales = "free") +
   theme_bw()
 
 # Comparing GA:TOT and KMeans for TOT objective across ar_var
 # We expect that GA:TOT outperforms KMeans for TOT objective
 # in the high variance case
 result %>%
-  filter(paste0(method,':',obj) %in% c("GA:TOT", "KM:WCSS")) %>%
-  pivot_longer(cols = c(TOT, WCSS)) %>%
-  group_by(method,obj,no_of_centers, ar_var, name) %>%
-  summarise(across(value, 
-                   list(mean = mean, sd = sd), 
-                   .names = "{.fn}")) %>%
-  ggplot(aes(x = factor(ar_var), 
-             y = mean,
-             color = paste0(method,':',obj))) +
+  filter(`Solution method` %in% c("GA:TOT", "KM:WCSS")) %>%
+  filter(Objective %in% c("TOT", "WCSS")) %>%
+  ggplot(aes(x = `Arrival rate variance`, 
+             y = `Objective value`,
+             color = `Solution method`)) +
   geom_boxplot() +
-  facet_wrap(~name, scales = "free") +
+  facet_wrap(`Number of UAVs`~Objective, scales = "free") +
   theme_bw()
 
 ### OLD
