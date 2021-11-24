@@ -143,12 +143,20 @@ simulation <- function(
     eventList <-bind_rows(eventList, data.frame(event = c("Call"), time = c(tNext), demandid = c(demand_id))) # put the first event into the eventlist
     eventList <-bind_rows(eventList, data.frame(event = c("Move"), time = c(tNext), demandid = c(0))) # put the "move" event into the eventlist
     tNow = tNext
+    reset = F # used in relation to excluding the warm up period
     while(nrow(eventList)>0 && tNow <LOS){
       # Extract the current event from the list and remove the event from the list
       eventNow <- eventList[1,]      
       eventList <- eventList[-c(1),]
       tNow = eventNow$time
       # cat(sprintf("EVENT = : %s\t", eventNow$event), sprintf("Time = : %s\n", tNow))
+      
+      # Exclude the warmup period (i.e. the first hour of the simulation)
+      if ((tNow >= 3600) & (reset == F)) {
+        demandPerformance = data.frame(nGenerated = rep(0, nDemands), nCovered = rep(0, nDemands), totalResponseTime = rep(0, nDemands))
+        agentPerformance = data.frame(nDispatched= rep(0, nAgents), totalUsage= rep(0,nAgents))
+        reset = T
+      }
       
       switch(as.character(eventNow$event), 
              "Call"={
@@ -291,6 +299,7 @@ simulation <- function(
                              "distances" = distances2)
     agentLog_list[[n]] <- agentLog
   }
+  set.seed(NULL)
   return(list("metrics" = metric_list, "log" = agentLog_list))
 }
 

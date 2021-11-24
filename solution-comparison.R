@@ -5,10 +5,10 @@ calc_obj2 <- function(file) {
   clean_name <- substring(file, 1, nchar(file) - 4)
   specification <- str_split(clean_name,'_')
   
-  instance_id <- specification[[1]][1]
-  method <- specification[[1]][2]
-  obj <- specification[[1]][3]
-  no_of_centers <- specification[[1]][4]
+  instance_id <- paste0(specification[[1]][1],'_',specification[[1]][2])
+  method <- specification[[1]][3]
+  obj <- specification[[1]][4]
+  no_of_centers <- specification[[1]][5]
   
   solution <- readRDS(paste0('./solution_for_simulation/',file))
   inst <- readRDS(paste0('./instances/',instance_id,'.rds'))
@@ -33,7 +33,12 @@ sol_files <- list.files('./solution_for_simulation')
 result <- do.call(
   bind_rows, 
   pbapply::pblapply(sol_files %>% as.list(), calc_obj2)
-)
+) 
+
+# %>% transmute(`Solution method` = paste0(method,':',obj),
+#                 `Number of UAVs` = no_of_centers,
+#                 `Arrival rate variance` = ar_var,
+#                 )
 
 data <- result %>%
   group_by(method,obj,no_of_centers, ar_var) %>%
@@ -62,7 +67,7 @@ result %>%
 # NOTE: Would probably make sense to make one for both 3 and 6
 # no_of_centers. Maybe compare them individually.
 result %>%
-  filter(no_of_centers == 6, ar_var != 80) %>%
+  # filter(no_of_centers == 6, ar_var != 80) %>%
   pivot_longer(cols = c(ARV, TOT, SAFE, WCSS)) %>%
   group_by(method,obj,no_of_centers, ar_var, name) %>%
   summarise(across(value, 
@@ -71,6 +76,23 @@ result %>%
   ggplot(aes(x = paste0(method,':',obj), 
              y = mean,
              color = method)) +
+  geom_boxplot() +
+  facet_wrap(~name, scales = "free") +
+  theme_bw()
+
+# Comparing GA:TOT and KMeans for TOT objective across ar_var
+# We expect that GA:TOT outperforms KMeans for TOT objective
+# in the high variance case
+result %>%
+  filter(paste0(method,':',obj) %in% c("GA:TOT", "KM:WCSS")) %>%
+  pivot_longer(cols = c(TOT, WCSS)) %>%
+  group_by(method,obj,no_of_centers, ar_var, name) %>%
+  summarise(across(value, 
+                   list(mean = mean, sd = sd), 
+                   .names = "{.fn}")) %>%
+  ggplot(aes(x = factor(ar_var), 
+             y = mean,
+             color = paste0(method,':',obj))) +
   geom_boxplot() +
   facet_wrap(~name, scales = "free") +
   theme_bw()
