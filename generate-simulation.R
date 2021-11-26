@@ -23,7 +23,7 @@ run_simulation <- function(i) {
   # Determine solution method
   if (is.null(solutions[[i]][["ga"]])) {
     method = "KMeans"
-    flight = "free"
+    flight = "zoned"
   } else {
     method = "GA"
     flight = "zoned"
@@ -34,14 +34,14 @@ run_simulation <- function(i) {
 
 system.time({
 # set up of parallel computation
-num_cores <- 4 # detectCores(logical = F)
+num_cores <- 8 # detectCores(logical = F)
 cl <- makeCluster(num_cores)
 
 parallel::clusterExport(cl, c('solutions', 'simulation'))
 invisible(parallel::clusterEvalQ(cl, library(dplyr)))
 
 pbapply::pblapply(
-  seq_along(solutions[1:4]),
+  seq_along(solutions),
   run_simulation,
   cl = cl
 )
