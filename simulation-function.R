@@ -6,8 +6,8 @@ simulation <- function(
 ) {
   set.seed(110520)
   # Setting parameters for later use
-  nReplications = 20
-  LOS = 28800 # Length of simulation
+  nReplications = 1
+  LOS = 14400 # Length of simulation
   
   nDemands = nrow(solution$instance)
   totaldemandrate = sum(solution$instance$`Arrival rate`)

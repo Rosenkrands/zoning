@@ -39,8 +39,7 @@ result <- result %>% mutate(
   `Solution method` = factor(paste0(method,':',obj),
                              levels = c("GA:ARV", "GA:SAFE", "GA:TOT", "KM:WCSS")),
   `Number of UAVs` = factor(as.numeric(no_of_centers),
-                            levels = c(5, 20),
-                            labels = c("low", "high")),
+                            levels = c(5, 10, 15, 20)),
   `Arrival rate variance` = factor(ar_var, 
                                    levels = c(20,50,80),
                                    labels = c("low", "medium", "high")),
@@ -89,7 +88,7 @@ result %>%
              y = `Objective value`,
              color = `Solution method`)) +
   geom_boxplot() +
-  facet_wrap(`Number of UAVs`~Objective, scales = "free") +
+  facet_wrap(`Number of UAVs`~Objective, scales = "free", nrow = 4) +
   theme_bw()
 
 ### OLD
