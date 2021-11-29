@@ -2,7 +2,7 @@
 source('2d-instance.R')
 
 simulation <- function(
-  solution, method = c("GA","KMeans"), flight = c("zoned", "free")
+  solution, method = c("GA","KMeans"), flight = c("zoned", "free"), log = F
 ) {
   set.seed(110520)
   # Setting parameters for later use
@@ -118,6 +118,7 @@ simulation <- function(
   
   metric_list <- list()
   agentLog_list <- list()
+  utilization_list <- list()
   
   for (n in 1:nReplications){
     # cat(sprintf("Replication = : %s\n", n))
@@ -295,12 +296,23 @@ simulation <- function(
     )
     
     metric_list[[n]] <- list("demandPerformance" = demandPerformance, 
-                             "agentPerformance" = agentPerformance, 
-                             "distances" = distances2)
+                             "agentPerformance" = agentPerformance
+                             #,"distances" = distances2
+                             )
     agentLog_list[[n]] <- agentLog
+    utilization_list[[n]] <- agentLog %>% 
+      select(id, status, time) %>%
+      mutate(inUse = ifelse(status != "IDLE", 1, 0)) %>%
+      group_by(time) %>%
+      summarise(inUse = mean(inUse)) %>%
+      mutate(inUse = cumsum(inUse))
   }
   set.seed(NULL)
-  return(list("metrics" = metric_list, "log" = agentLog_list))
+  if (log == T) {
+    return(list("metrics" = metric_list, "log" = agentLog_list))
+  } else {
+    return(list("metrics" = metric_list, "utilization" = utilization_list))
+  }
 }
 
 # # TEST
