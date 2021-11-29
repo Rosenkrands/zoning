@@ -1,33 +1,6 @@
 source("2d-instance.R")
 source("solution-functions.R")
 
-# calc_obj2 <- function(file) {
-#   clean_name <- substring(file, 1, nchar(file) - 4)
-#   specification <- str_split(clean_name,'_')
-#   
-#   instance_id <- paste0(specification[[1]][1],'_',specification[[1]][2])
-#   method <- specification[[1]][3]
-#   obj <- specification[[1]][4]
-#   no_of_centers <- specification[[1]][5]
-#   
-#   solution <- readRDS(paste0('./solution_for_simulation/',file))
-#   inst <- readRDS(paste0('./instances/',instance_id,'.rds'))
-#   
-#   tibble(
-#     file = file,
-#     instance = instance_id,
-#     method,
-#     obj,
-#     no_of_centers = no_of_centers,
-#     ar_var = inst$arv['max'] %>% as.numeric() - inst$arv['min'] %>% as.numeric(),
-#     ARV = ARV(solution),
-#     SAFE = SAFE(solution),
-#     TOT = TOT(solution),
-#     WCSS = WCSS(solution),
-#     number_of_centroids = number_of_centroids(solution)
-#   )
-# }
-
 sol_files <- list.files('./solution_for_simulation')
 
 result <- do.call(
@@ -39,7 +12,8 @@ result <- result %>% mutate(
   `Solution method` = factor(paste0(method,':',obj),
                              levels = c("GA:ARV", "GA:SAFE", "GA:TOT", "KM:WCSS")),
   `Number of UAVs` = factor(as.numeric(no_of_centers),
-                            levels = c(5, 10, 15, 20)),
+                            levels = c(5, 10, 15, 20),
+                            labels = c("low", "medium", "high", "20")),
   `Arrival rate variance` = factor(ar_var, 
                                    levels = c(20,50,80),
                                    labels = c("low", "medium", "high")),
@@ -48,6 +22,8 @@ result <- result %>% mutate(
   pivot_longer(cols = c(ARV, TOT, SAFE, WCSS), 
                names_to = "Objective", values_to = "Objective value")
   
+saveRDS(result, file = "./solution-results.rds")
+
 ### mean/variance plot ###
 # Each tile show an objective function, the color show the
 # objective function used for solving and shape shows method
