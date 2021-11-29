@@ -1,6 +1,6 @@
 source('2d-instance.R')
 
-for (i in 1:10) {
+for (i in 11:20) {
   for (j in c(10,25,40)) {
     instance <- generate_2d_instance(
       seed = i,
