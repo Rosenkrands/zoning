@@ -1,32 +1,32 @@
 source("2d-instance.R")
 source("solution-functions.R")
 
-calc_obj2 <- function(file) {
-  clean_name <- substring(file, 1, nchar(file) - 4)
-  specification <- str_split(clean_name,'_')
-  
-  instance_id <- paste0(specification[[1]][1],'_',specification[[1]][2])
-  method <- specification[[1]][3]
-  obj <- specification[[1]][4]
-  no_of_centers <- specification[[1]][5]
-  
-  solution <- readRDS(paste0('./solution_for_simulation/',file))
-  inst <- readRDS(paste0('./instances/',instance_id,'.rds'))
-  
-  tibble(
-    file = file,
-    instance = instance_id,
-    method,
-    obj,
-    no_of_centers = no_of_centers,
-    ar_var = inst$arv['max'] %>% as.numeric() - inst$arv['min'] %>% as.numeric(),
-    ARV = ARV(solution),
-    SAFE = SAFE(solution),
-    TOT = TOT(solution),
-    WCSS = WCSS(solution),
-    number_of_centroids = number_of_centroids(solution)
-  )
-}
+# calc_obj2 <- function(file) {
+#   clean_name <- substring(file, 1, nchar(file) - 4)
+#   specification <- str_split(clean_name,'_')
+#   
+#   instance_id <- paste0(specification[[1]][1],'_',specification[[1]][2])
+#   method <- specification[[1]][3]
+#   obj <- specification[[1]][4]
+#   no_of_centers <- specification[[1]][5]
+#   
+#   solution <- readRDS(paste0('./solution_for_simulation/',file))
+#   inst <- readRDS(paste0('./instances/',instance_id,'.rds'))
+#   
+#   tibble(
+#     file = file,
+#     instance = instance_id,
+#     method,
+#     obj,
+#     no_of_centers = no_of_centers,
+#     ar_var = inst$arv['max'] %>% as.numeric() - inst$arv['min'] %>% as.numeric(),
+#     ARV = ARV(solution),
+#     SAFE = SAFE(solution),
+#     TOT = TOT(solution),
+#     WCSS = WCSS(solution),
+#     number_of_centroids = number_of_centroids(solution)
+#   )
+# }
 
 sol_files <- list.files('./solution_for_simulation')
 
