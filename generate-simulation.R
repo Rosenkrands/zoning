@@ -28,8 +28,10 @@ run_simulation <- function(i) {
     method = "GA"
     flight = "zoned"
   }
+  file = paste0('./simulations/',names(solutions)[[i]])
+  if (file.exists(file)) {cat("File exists, continuing...\n"); return()}
   rslt <- simulation(solutions[[i]], method = method, flight = flight)
-  saveRDS(rslt, file = paste0('./simulations/',names(solutions)[[i]]))
+  saveRDS(rslt, file = file)
 }
 
 system.time({
