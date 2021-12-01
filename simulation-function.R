@@ -137,6 +137,7 @@ simulation <- function(
     # Initialize a simulation result
     demandPerformance = data.frame(nGenerated = rep(0, nDemands), nCovered = rep(0, nDemands), totalResponseTime = rep(0, nDemands))
     agentPerformance = data.frame(nDispatched= rep(0, nAgents), totalUsage= rep(0,nAgents))
+    responseTimePerformance = data.frame(demand_id_handling = integer(), responseTime = integer()) 
     # Initialize the event list
     eventList = data.frame(event = character(), time = numeric(), agentid = numeric(), demandid = numeric())
     tNext = round(rexp(1, totaldemandrate)) # Sample next demand arrival time
@@ -156,6 +157,7 @@ simulation <- function(
       if ((tNow >= 3600) & (reset == F)) {
         demandPerformance = data.frame(nGenerated = rep(0, nDemands), nCovered = rep(0, nDemands), totalResponseTime = rep(0, nDemands))
         agentPerformance = data.frame(nDispatched= rep(0, nAgents), totalUsage= rep(0,nAgents))
+        responseTimePerformance = data.frame(demand_id_handling = integer(), responseTime = integer()) 
         reset = T
       }
       
@@ -210,7 +212,13 @@ simulation <- function(
                      if (agentList$status[agent_id] == "BUSY"){ # arrived at the demand point
                        # cat(sprintf("Agent %s\t", agent_id), sprintf(" arrived at demand point %s ", agentList$demand_id_handling[agent_id]), sprintf("at time %s\n", tNow))
                        # Record demand performance
-                       demandPerformance$totalResponseTime[agentList$demand_id_handling[agent_id]] <-  demandPerformance$totalResponseTime[agentList$demand_id_handling[agent_id]]+ (tNow-agentList$tDeployed[agent_id]) 
+                       demandPerformance$totalResponseTime[agentList$demand_id_handling[agent_id]] <-  demandPerformance$totalResponseTime[agentList$demand_id_handling[agent_id]]+ (tNow-agentList$tDeployed[agent_id])
+                       responseTimePerformance <- bind_rows(
+                         responseTimePerformance,
+                         data.frame(demand_id_handling = agentList$demand_id_handling[agent_id],
+                                    responseTime = tNow-agentList$tDeployed[agent_id])
+                       )
+                       
                        
                        # Assign the return trip
                        agentList$status[agent_id] = "BACK"
@@ -296,7 +304,8 @@ simulation <- function(
     )
     
     metric_list[[n]] <- list("demandPerformance" = demandPerformance, 
-                             "agentPerformance" = agentPerformance
+                             "agentPerformance" = agentPerformance,
+                             "responseTimePerformance" = responseTimePerformance
                              #,"distances" = distances2
                              )
     agentLog_list[[n]] <- agentLog
@@ -315,36 +324,35 @@ simulation <- function(
   }
 }
 
-# # TEST
+# TEST
 # instance = generate_2d_instance(
 #   no_of_points = 100,
 #   interval = c("min" = -10, "max" = 10)
 # )
-# 
-# # centroids = grid_centroids(instance, dimension = 4)
-# 
-# # solution = solve_ga(instance, centroids, miter = 5)
+
+# centroids = grid_centroids(instance, dimension = 4)
+
+# solution = solve_ga(instance, centroids, miter = 5)
 # solution = solve_kmeans(instance, no_of_centers = 5)
-# 
-# # sim_result <- simulation(solution = solution, method = "GA")
+
+# sim_result <- simulation(solution = solution, method = "GA")
 # sim_result_zoned <- simulation(solution = solution,
 #                          method = "KMeans", flight = "zoned")
 # sim_result_free <- simulation(solution = solution,
 #                                method = "KMeans", flight = "free")
-# 
-# # histogram of safety distances
+
+# histogram of safety distances
 # bind_rows(
-#   sim_result_free$metrics[[1]]$distance %>% mutate(flight = "free"),
-#   sim_result_zoned$metrics[[1]]$distance %>% mutate(flight = "zoned")
+#   sim_result_free$metrics[[1]]$responseTime %>% mutate(flight = "free"),
+#   sim_result_zoned$metrics[[1]]$responseTime %>% mutate(flight = "zoned")
 # ) %>%
-#   ggplot(aes(x = distance*1000, fill = flight)) +
-#   geom_histogram(bins = 100, color = "black") +
+#   ggplot(aes(x = responseTime, fill = flight)) +
+#   geom_histogram(bins = 50, color = "black") +
 #   facet_wrap(~flight, nrow = 2) +
-#   scale_x_continuous(limits=c(0,3000)) +
 #   theme_bw() +
 #   theme(legend.position = "none")
-# 
-# # utilization
+
+# utilization
 # bind_rows(
 #   sim_result_free$log[1][[1]] %>% mutate(flight = "free"),
 #   sim_result_zoned$log[1][[1]] %>% mutate(flight = "zoned"),
@@ -359,8 +367,8 @@ simulation <- function(
 #   # tidyquant::geom_ma(n=30) +
 #   geom_hline(yintercept = 1, linetype="dashed") +
 #   theme_bw()
-# 
-# # effectiveness
+
+# effectiveness
 # bind_rows(
 #   sim_result_free$log[1][[1]] %>% mutate(flight = "free"),
 #   sim_result_zoned$log[1][[1]] %>% mutate(flight = "zoned"),
@@ -375,8 +383,8 @@ simulation <- function(
 #   # tidyquant::geom_ma(n=30) +
 #   geom_hline(yintercept = 1, linetype="dashed") +
 #   theme_bw()
-# 
-# # effectiveness
+
+# effectiveness
 # bind_rows(
 #   sim_result_free$metrics[[1]]$demandPerformance  %>%
 #     summarise(across(c(nGenerated,nCovered), sum)) %>%

@@ -39,9 +39,9 @@ result_table <- as_tibble(sim_result) %>%
   pivot_longer(cols = -c(type), names_to = "file") %>%
   pivot_wider(id_cols = c(type, file), names_from = type)
 
-data <- result %>% inner_join(result_table, by = "file")
+simulation_result <- result %>% inner_join(result_table, by = "file")
 
-saveRDS(data, file = "./simulation-results.rds")
+saveRDS(simulation_result, file = "./simulation-results.rds")
 
 # prepare data for utilization plot
 # data %>%
@@ -139,8 +139,7 @@ mean_response <- function(x) {
       x,
       function(z) z$demandPerformance %>%
         filter(nCovered != 0) %>%
-        mutate(mean_response = totalResponseTime/nCovered) %>%
-        summarise(mean_response = mean(mean_response))
+        summarise(mean_response = mean(totalResponseTime/nCovered))
     )
   )
   as.numeric(mc)
