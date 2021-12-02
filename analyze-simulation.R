@@ -186,6 +186,28 @@ simulation_result %>%
                 position = position_dodge(.9), width = .2) +
   facet_wrap(~ `Number of UAVs`, nrow = 1)
 
+# Response rate distribution
+rrd_data <- simulation_result %>%
+  unnest(cols = metric) %>%
+  mutate(metric = map(metric, ~.x$responseTimePerformance)) %>%
+  unnest(cols = metric) %>%
+  filter(`Solution method` %in% c("GA:TOT","KM:WCSS"),
+         `Number of UAVs` %in% c("low","medium", "high"),
+         `Arrival rate variance` %in% c("low", "medium", "high"))
+
+rrd_mean_data <- rrd_data %>%
+  group_by(`Solution method`, `Number of UAVs`, `Arrival rate variance`) %>%
+  summarise(mean_responseTime = mean(responseTime),
+            median_responseTime = median(responseTime))
+
+rrd_data %>%
+  ggplot(aes(x=responseTime,
+             fill = `Solution method`)) +
+  geom_density(color = 'black', alpha = .4) +
+  geom_vline(data = rrd_mean_data, aes(xintercept = mean_responseTime, color = `Solution method`)) +
+  facet_grid(`Number of UAVs`~`Arrival rate variance`, labeller = label_both) +
+  theme_bw()
+
 # sample_m <- mean(test$mean_coverage[2][[1]]$demand_coverage)
 # t <- (sd(test$mean_coverage[2][[1]]$demand_coverage)/sqrt(19))*pt(c(.975), 19)
 # 
