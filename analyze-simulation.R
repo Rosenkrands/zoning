@@ -43,63 +43,28 @@ simulation_result <- result %>% inner_join(result_table, by = "file")
 
 saveRDS(simulation_result, file = "./simulation-results.rds")
 
-# prepare data for utilization plot
-# data %>%
-#   unnest(cols = utilization) %>%
-#   unnest(cols = utilization) %>%
-#   filter(`Solution method` %in% c("GA:TOT","KM:WCSS"),
-#          `Number of UAVs` %in% c("low"),
-#          `Arrival rate variance` %in% c("high")) %>%
-#   ggplot(aes(x=time, 
-#              y=inUse/time, 
-#              group = file, 
-#              color = `Solution method`)) + 
-#   geom_line() +
-#   facet_wrap(`Number of UAVs`~`Arrival rate variance`) +
-#   theme_bw()
-  
+response_time_metrics <- simulation_result %>%
+  select(`Solution method`, `Arrival rate variance`, `Number of UAVs`, metric) %>%
+  mutate(responseTime = map(metric, ~.x[[1]]$responseTimePerformance)) %>%
+  unnest(cols = responseTime) %>%
+  group_by(`Solution method`, `Arrival rate variance`, `Number of UAVs`) %>%
+  summarise(`Mean response` = mean(responseTime),
+            #`Median response` = median(responseTime),
+            `90th percentile response` = quantile(responseTime, probs = c(.9)))
 
-#' calculate metrics for the simulation results, this should be done for each
-#' repetition of the simulation and for each of the simulations
-# 
-# plot_data_6_tot <- do.call(
-#   bind_rows, 
-#   lapply(seq_along(data$log[3][[1]]),
-#          function(i) data$log[3][[1]][[i]] %>% mutate(rep_id = i))
-# ) %>% 
-#   select(id, rep_id, status, time) %>%
-#   mutate(inUse = ifelse(status != "IDLE", 1, 0)) %>%
-#   group_by(rep_id, time) %>%
-#   summarise(inUse = mean(inUse)) %>%
-#   mutate(inUse = cumsum(inUse))
-# 
-# plot_data_6_wcss <- do.call(
-#   bind_rows, 
-#   lapply(seq_along(data$log[6][[1]]),
-#          function(i) data$log[6][[1]][[i]] %>% mutate(rep_id = i))
-# ) %>% 
-#   select(id, rep_id, status, time) %>%
-#   mutate(inUse = ifelse(status != "IDLE", 1, 0)) %>%
-#   group_by(rep_id, time) %>%
-#   summarise(inUse = mean(inUse)) %>%
-#   mutate(inUse = cumsum(inUse))
-# 
-# plot_data <- bind_rows(
-#   plot_data_6_tot %>% mutate(obj = "TOT"),
-#   plot_data_6_wcss %>% mutate(obj = "WCSS"),
-# )
-# 
-# plot_data %>%
-#   ggplot() +
-#   geom_line(aes(x = time, y = inUse/time, group = as.character(rep_id)),
-#             color = "gray") +
-#   geom_line(data = plot_data %>%
-#               group_by(obj, time) %>%
-#               summarise(inUse = mean(inUse)),
-#             aes(x = time, y = inUse/time, group = obj)) +
-#   geom_hline(yintercept = 1, linetype="dashed") +
-#   facet_wrap(~obj) +
-#   theme_bw()
+fulfillment_metrics <- simulation_result %>%
+  select(`Solution method`, `Arrival rate variance`, `Number of UAVs`, metric) %>%
+  mutate(demandPerformance = map(metric, ~.x[[1]]$demandPerformance)) %>%
+  unnest(cols = demandPerformance) %>%
+  group_by(`Solution method`, `Arrival rate variance`, `Number of UAVs`) %>%
+  summarise(`Fulfillment ratio` = mean(nCovered/nGenerated, na.rm = TRUE))
+
+regression_data <- inner_join(
+  response_time_metrics, fulfillment_metrics,
+  by = c("Solution method", "Arrival rate variance", "Number of UAVs")
+)
+
+saveRDS(regression_data, file = './regression-data.rds')
 
 # safety distances
 ggplot() +
@@ -127,19 +92,6 @@ mean_coverage <- function(x) {
       x,
       function(z) z$demandPerformance %>% 
         summarise(demand_coverage = sum(nCovered)/sum(nGenerated))
-    )
-  )
-  as.numeric(mc)
-}
-
-mean_response <- function(x) {
-  mc <- do.call(
-    bind_rows,
-    lapply(
-      x,
-      function(z) z$demandPerformance %>%
-        filter(nCovered != 0) %>%
-        summarise(mean_response = mean(totalResponseTime/nCovered))
     )
   )
   as.numeric(mc)
@@ -198,38 +150,15 @@ rrd_data <- simulation_result %>%
 rrd_mean_data <- rrd_data %>%
   group_by(`Solution method`, `Number of UAVs`, `Arrival rate variance`) %>%
   summarise(mean_responseTime = mean(responseTime),
-            median_responseTime = median(responseTime))
+            median_responseTime = median(responseTime),
+            t = (sd(responseTime)/sqrt(20))*pt(c(.975), 1))
 
 rrd_data %>%
   ggplot(aes(x=responseTime,
              fill = `Solution method`)) +
   geom_density(color = 'black', alpha = .4) +
-  geom_vline(data = rrd_mean_data, aes(xintercept = mean_responseTime, color = `Solution method`)) +
+  # geom_vline(data = rrd_mean_data, aes(xintercept = mean_responseTime, color = `Solution method`)) +
   facet_grid(`Number of UAVs`~`Arrival rate variance`, labeller = label_both) +
   theme_bw()
 
-# sample_m <- mean(test$mean_coverage[2][[1]]$demand_coverage)
-# t <- (sd(test$mean_coverage[2][[1]]$demand_coverage)/sqrt(19))*pt(c(.975), 19)
-# 
-# 
-# mean(test$mean_coverage[4][[1]]$demand_coverage)
-# sd(test$mean_coverage[4][[1]]$demand_coverage)/sqrt(19)
-# 
-# tibble(
-#   sample_mean = c(
-#     mean(test$mean_coverage[3][[1]]$demand_coverage),
-#     mean(test$mean_coverage[6][[1]]$demand_coverage) 
-#   ),
-#   t = c(
-#     (sd(test$mean_coverage[3][[1]]$demand_coverage)/sqrt(1))*pt(c(.975), 1),
-#     (sd(test$mean_coverage[6][[1]]$demand_coverage)/sqrt(1))*pt(c(.975), 1)
-#   ),
-#   obj = c("TOT", "WCSS")
-# ) %>%
-#   ggplot(aes(x=obj, y=sample_mean, color=obj)) +
-#   geom_pointrange(aes(ymin=sample_mean - t, ymax=sample_mean + t))
-# 
-# 
-# # Checking the random seeds
-# data$metric[3][[1]][[1]]$demandPerformance %>% summarise(nGenerated = sum(nGenerated))
-# data$metric[6][[1]][[1]]$demandPerformance %>% summarise(nGenerated = sum(nGenerated))
+rrd_mean_data <-
