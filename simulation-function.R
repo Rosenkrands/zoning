@@ -2,7 +2,7 @@
 source('2d-instance.R')
 
 simulation <- function(
-  solution, method = c("GA","KMeans"), flight = c("zoned", "free"), log = F
+  solution, method = c("GA","KMeans"), flight = c("zoned", "free"), log = F, max_dist = 1000000
 ) {
   set.seed(110520)
   # Setting parameters for later use
@@ -103,7 +103,7 @@ simulation <- function(
       }
       df_temp <- df_temp[sample(nrow(df_temp)), ] # to avoid selection with lowest id. 
       df_temp <- df_temp[order(df_temp$dist), ]  # sort the list by distance
-      if (df_temp[1,2] < 1000000){
+      if (df_temp[1,2] < max_dist){
         return (df_temp[1,1]) # return agent id
       } 
       else {# all agents are busy
