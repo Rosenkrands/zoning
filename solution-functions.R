@@ -75,6 +75,9 @@ calc_obj2 <- function(file) {
   method <- specification[[1]][3]
   obj <- specification[[1]][4]
   no_of_centers <- specification[[1]][5]
+  # High dimension is the 6'th location, so if the 6'th entry is na
+  # the solution is not high dimension
+  high_dimension <- if (is.na(specification[[1]][6])) FALSE else TRUE
   
   solution <- readRDS(paste0('./solution_for_simulation/',file))
   inst <- readRDS(paste0('./instances/',instance_id,'.rds'))
@@ -90,7 +93,8 @@ calc_obj2 <- function(file) {
     SAFE = SAFE(solution),
     TOT = TOT(solution),
     WCSS = WCSS(solution),
-    number_of_centroids = number_of_centroids(solution)
+    number_of_centroids = number_of_centroids(solution),
+    grid_dimension = ifelse(high_dimension,15,8)
   )
 }
 
