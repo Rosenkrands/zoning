@@ -15,13 +15,14 @@ result <- result %>% mutate(
   `Solution method` = factor(paste0(method,':',obj),
                              levels = c("GA:ARV", "GA:SAFE", "GA:TOT", "KM:WCSS")),
   `Number of UAVs` = factor(as.numeric(no_of_centers),
-                            levels = c(5, 10, 15, 20),
-                            labels = c("low", "medium", "high", "20")),
+                            levels = c(5, 10, 15),
+                            labels = c("low", "medium", "high")),
   `Arrival rate variance` = factor(ar_var, 
                                    levels = c(20,50,80),
                                    labels = c("low", "medium", "high")),
 ) %>%
-  select(-c(method, obj, no_of_centers, ar_var))
+  select(-c(method, obj, no_of_centers, ar_var)) %>%
+  filter(grid_dimension == 8)
 
 # Read simulations into list
 sim_files <- list.files('./simulations')
@@ -44,24 +45,24 @@ simulation_result <- result %>% inner_join(result_table, by = "file")
 saveRDS(simulation_result, file = "./simulation-results.rds")
 
 response_time_metrics <- simulation_result %>%
-  select(`Solution method`, `Arrival rate variance`, `Number of UAVs`, metric) %>%
+  select(instance, `Solution method`, `Arrival rate variance`, `Number of UAVs`, metric) %>%
   mutate(responseTime = map(metric, ~.x[[1]]$responseTimePerformance)) %>%
   unnest(cols = responseTime) %>%
-  group_by(`Solution method`, `Arrival rate variance`, `Number of UAVs`) %>%
+  group_by(instance, `Solution method`, `Arrival rate variance`, `Number of UAVs`) %>%
   summarise(`Mean response` = mean(responseTime),
             #`Median response` = median(responseTime),
             `90th percentile response` = quantile(responseTime, probs = c(.9)))
 
 fulfillment_metrics <- simulation_result %>%
-  select(`Solution method`, `Arrival rate variance`, `Number of UAVs`, metric) %>%
+  select(instance, `Solution method`, `Arrival rate variance`, `Number of UAVs`, metric) %>%
   mutate(demandPerformance = map(metric, ~.x[[1]]$demandPerformance)) %>%
   unnest(cols = demandPerformance) %>%
-  group_by(`Solution method`, `Arrival rate variance`, `Number of UAVs`) %>%
+  group_by(instance, `Solution method`, `Arrival rate variance`, `Number of UAVs`) %>%
   summarise(`Fulfillment ratio` = mean(nCovered/nGenerated, na.rm = TRUE))
 
 regression_data <- inner_join(
   response_time_metrics, fulfillment_metrics,
-  by = c("Solution method", "Arrival rate variance", "Number of UAVs")
+  by = c("instance", "Solution method", "Arrival rate variance", "Number of UAVs")
 )
 
 saveRDS(regression_data, file = './regression-data.rds')
