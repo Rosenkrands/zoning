@@ -11,7 +11,20 @@ result <- do.call(
   pbapply::pblapply(sol_files %>% as.list(), calc_obj2)
 )
 
-result <- result %>% mutate(
+# result <- result %>% mutate(
+#   `Solution method` = factor(paste0(method,':',obj),
+#                              levels = c("GA:ARV", "GA:SAFE", "GA:TOT", "KM:WCSS")),
+#   `Number of UAVs` = factor(as.numeric(no_of_centers),
+#                             levels = c(5, 10, 15),
+#                             labels = c("low", "medium", "high")),
+#   `Arrival rate variance` = factor(ar_var, 
+#                                    levels = c(20,50,80),
+#                                    labels = c("low", "medium", "high")),
+# ) %>%
+#   select(-c(method, obj, no_of_centers, ar_var)) %>%
+#   filter(grid_dimension == 8)
+
+result <- result %>% rowwise() %>% mutate(
   `Solution method` = factor(paste0(method,':',obj),
                              levels = c("GA:ARV", "GA:SAFE", "GA:TOT", "KM:WCSS")),
   `Number of UAVs` = factor(as.numeric(no_of_centers),
@@ -20,9 +33,13 @@ result <- result %>% mutate(
   `Arrival rate variance` = factor(ar_var, 
                                    levels = c(20,50,80),
                                    labels = c("low", "medium", "high")),
+  grid_dimension = ifelse(str_split(file,'_')[[1]][5] == 20, 25, grid_dimension),
+  `Grid dimension` = factor(
+    grid_dimension,
+    levels = c(8,15,25)
+  )
 ) %>%
-  select(-c(method, obj, no_of_centers, ar_var)) %>%
-  filter(grid_dimension == 8)
+  select(-c(method, obj, no_of_centers, ar_var,grid_dimension))
 
 # Read simulations into list
 sim_files <- list.files('./simulations')
@@ -33,14 +50,17 @@ sim_result <- pbapply::pblapply(
 )
 
 # Join the simulation results on the file version
-names(sim_result) <- result$file
+names(sim_result) <- sim_files
 
 result_table <- as_tibble(sim_result) %>% 
   mutate(type = c("metric", "utilization")) %>%
   pivot_longer(cols = -c(type), names_to = "file") %>%
   pivot_wider(id_cols = c(type, file), names_from = type)
 
-simulation_result <- result %>% inner_join(result_table, by = "file")
+simulation_result <- result %>%
+  inner_join(result_table %>% 
+               mutate(file = str_remove(file, 'sim_')), 
+             by = "file")
 
 saveRDS(simulation_result, file = "./simulation-results.rds")
 
@@ -161,5 +181,3 @@ rrd_data %>%
   # geom_vline(data = rrd_mean_data, aes(xintercept = mean_responseTime, color = `Solution method`)) +
   facet_grid(`Number of UAVs`~`Arrival rate variance`, labeller = label_both) +
   theme_bw()
-
-rrd_mean_data <-
