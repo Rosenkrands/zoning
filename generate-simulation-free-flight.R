@@ -48,7 +48,7 @@ run_simulation <- function(param) {
     flight = "free"
   }
   file = paste0('./simulations_free_flight/',param$`Simulation file`)
-  # if (file.exists(file)) {cat("File exists, continuing...\n"); return()}
+  if (file.exists(file)) {cat("File exists, continuing...\n"); return()}
 
   if (param$max_dist != "No constraint") {
     max_dist <- param$Solution[[1]]$instance %>%
