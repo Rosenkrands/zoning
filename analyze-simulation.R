@@ -11,35 +11,17 @@ result <- do.call(
   pbapply::pblapply(sol_files %>% as.list(), calc_obj2)
 )
 
-# result <- result %>% mutate(
-#   `Solution method` = factor(paste0(method,':',obj),
-#                              levels = c("GA:ARV", "GA:SAFE", "GA:TOT", "KM:WCSS")),
-#   `Number of UAVs` = factor(as.numeric(no_of_centers),
-#                             levels = c(5, 10, 15),
-#                             labels = c("low", "medium", "high")),
-#   `Arrival rate variance` = factor(ar_var, 
-#                                    levels = c(20,50,80),
-#                                    labels = c("low", "medium", "high")),
-# ) %>%
-#   select(-c(method, obj, no_of_centers, ar_var)) %>%
-#   filter(grid_dimension == 8)
-
-result <- result %>% rowwise() %>% mutate(
+result <- result %>% mutate(
   `Solution method` = factor(paste0(method,':',obj),
                              levels = c("GA:ARV", "GA:SAFE", "GA:TOT", "KM:WCSS")),
   `Number of UAVs` = factor(as.numeric(no_of_centers),
-                            levels = c(5, 10, 15),
-                            labels = c("low", "medium", "high")),
+                            levels = c(5, 10, 15, 20),
+                            labels = c("low", "medium", "high", "20")),
   `Arrival rate variance` = factor(ar_var, 
                                    levels = c(20,50,80),
                                    labels = c("low", "medium", "high")),
-  grid_dimension = ifelse(str_split(file,'_')[[1]][5] == 20, 25, grid_dimension),
-  `Grid dimension` = factor(
-    grid_dimension,
-    levels = c(8,15,25)
-  )
 ) %>%
-  select(-c(method, obj, no_of_centers, ar_var,grid_dimension))
+  select(-c(method, obj, no_of_centers, ar_var))
 
 # Read simulations into list
 sim_files <- list.files('./simulations')
@@ -50,39 +32,36 @@ sim_result <- pbapply::pblapply(
 )
 
 # Join the simulation results on the file version
-names(sim_result) <- sim_files
+names(sim_result) <- result$file
 
 result_table <- as_tibble(sim_result) %>% 
   mutate(type = c("metric", "utilization")) %>%
   pivot_longer(cols = -c(type), names_to = "file") %>%
   pivot_wider(id_cols = c(type, file), names_from = type)
 
-simulation_result <- result %>%
-  inner_join(result_table %>% 
-               mutate(file = str_remove(file, 'sim_')), 
-             by = "file")
+simulation_result <- result %>% inner_join(result_table, by = "file")
 
 saveRDS(simulation_result, file = "./simulation-results.rds")
 
 response_time_metrics <- simulation_result %>%
-  select(instance, `Solution method`, `Arrival rate variance`, `Number of UAVs`, metric) %>%
+  select(`Solution method`, `Arrival rate variance`, `Number of UAVs`, metric) %>%
   mutate(responseTime = map(metric, ~.x[[1]]$responseTimePerformance)) %>%
   unnest(cols = responseTime) %>%
-  group_by(instance, `Solution method`, `Arrival rate variance`, `Number of UAVs`) %>%
+  group_by(`Solution method`, `Arrival rate variance`, `Number of UAVs`) %>%
   summarise(`Mean response` = mean(responseTime),
             #`Median response` = median(responseTime),
             `90th percentile response` = quantile(responseTime, probs = c(.9)))
 
 fulfillment_metrics <- simulation_result %>%
-  select(instance, `Solution method`, `Arrival rate variance`, `Number of UAVs`, metric) %>%
+  select(`Solution method`, `Arrival rate variance`, `Number of UAVs`, metric) %>%
   mutate(demandPerformance = map(metric, ~.x[[1]]$demandPerformance)) %>%
   unnest(cols = demandPerformance) %>%
-  group_by(instance, `Solution method`, `Arrival rate variance`, `Number of UAVs`) %>%
+  group_by(`Solution method`, `Arrival rate variance`, `Number of UAVs`) %>%
   summarise(`Fulfillment ratio` = mean(nCovered/nGenerated, na.rm = TRUE))
 
 regression_data <- inner_join(
   response_time_metrics, fulfillment_metrics,
-  by = c("instance", "Solution method", "Arrival rate variance", "Number of UAVs")
+  by = c("Solution method", "Arrival rate variance", "Number of UAVs")
 )
 
 saveRDS(regression_data, file = './regression-data.rds')
@@ -181,3 +160,5 @@ rrd_data %>%
   # geom_vline(data = rrd_mean_data, aes(xintercept = mean_responseTime, color = `Solution method`)) +
   facet_grid(`Number of UAVs`~`Arrival rate variance`, labeller = label_both) +
   theme_bw()
+
+rrd_mean_data <-

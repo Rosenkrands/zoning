@@ -16,10 +16,10 @@ result_filtered <- result %>%
 
 # Load the solutions into a list, with method specified
 solutions <- pbapply::pblapply(
-  result_filtered$file %>% split(1:nrow(result_filtered)),
+  result$file %>% split(1:nrow(result)),
   function(file) readRDS(paste0('./solution_for_simulation/',file))
 )
-names(solutions) <- str_c("sim_", result_filtered$file)
+names(solutions) <- str_c("sim_", result$file)
 
 # Perform simulation for solutions, in parallel
 run_simulation <- function(i) {
@@ -39,7 +39,7 @@ run_simulation <- function(i) {
 
 system.time({
 # set up of parallel computation
-num_cores <- detectCores(logical = F)
+num_cores <- 8 # detectCores(logical = F)
 cl <- makeCluster(num_cores)
 
 parallel::clusterExport(cl, c('solutions', 'simulation'))

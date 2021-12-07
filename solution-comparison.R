@@ -63,9 +63,8 @@ result %>%
 # We expect that GA:TOT outperforms KMeans for TOT objective
 # in the high variance case
 result %>%
-  filter(`Solution method` %in% c("GA:TOT", "KM:WCSS"),
-         Objective %in% c("TOT", "WCSS"),
-         `Number of UAVs` %in% c("low","medium","high")) %>%
+  filter(`Solution method` %in% c("GA:TOT", "KM:WCSS")) %>%
+  filter(Objective %in% c("TOT", "WCSS")) %>%
   ggplot(aes(x = `Arrival rate variance`, 
              y = `Objective value`,
              color = `Solution method`)) +
