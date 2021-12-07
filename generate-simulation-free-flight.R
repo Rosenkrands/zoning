@@ -27,7 +27,7 @@ solutions <- pbapply::pblapply(
 )
 names(solutions) <- str_c("sim_free-flight_max_", result_filtered$file)
 
-distances <- tibble(max_dist = c("0", ".2", ".5", "1", "No constraint"))
+distances <- tibble(max_dist = c("0", ".2", ".5", "No constraint"))
 
 params <- as_tibble_col(solutions) %>%
   rename(Solution = value) %>%
