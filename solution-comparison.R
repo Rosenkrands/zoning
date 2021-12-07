@@ -8,15 +8,20 @@ result <- do.call(
   pbapply::pblapply(sol_files %>% as.list(), calc_obj2)
 ) 
 
-result <- result %>% mutate(
+result <- result %>% rowwise() %>% mutate(
   `Solution method` = factor(paste0(method,':',obj),
                              levels = c("GA:ARV", "GA:SAFE", "GA:TOT", "KM:WCSS")),
   `Number of UAVs` = factor(as.numeric(no_of_centers),
-                            levels = c(5, 10, 15, 20),
-                            labels = c("low", "medium", "high", "20")),
+                            levels = c(5, 10, 15),
+                            labels = c("low", "medium", "high")),
   `Arrival rate variance` = factor(ar_var, 
                                    levels = c(20,50,80),
                                    labels = c("low", "medium", "high")),
+  grid_dimension = ifelse(str_split(file,'_')[[1]][5] == 20, 25, grid_dimension),
+  `Grid dimension` = factor(
+    grid_dimension,
+    levels = c(8,15,25)
+  )
 ) %>%
   select(-c(method, obj, no_of_centers, ar_var)) %>%
   pivot_longer(cols = c(ARV, TOT, SAFE, WCSS), 
@@ -66,6 +71,26 @@ result %>%
              color = `Solution method`)) +
   geom_boxplot() +
   facet_wrap(`Number of UAVs`~Objective, scales = "free", nrow = 4) +
+  theme_bw()
+
+#### Checking results for high dimension grid
+# instances with high dimension grid
+hd_instance <- result %>% 
+  filter(grid_dimension > 8) %>%
+  select(instance) %>%
+  unique()
+
+result %>%
+  filter(instance %in% hd_instance$instance,
+         `Solution method` %in% c("GA:TOT", "KM:WCSS"),
+         Objective %in% c("TOT", "WCSS"),
+         `Number of UAVs` %in% c("high")) %>%
+  ggplot(aes(x = `Arrival rate variance`, 
+             y = `Objective value`,
+             color = factor(paste0(`Solution method`,`Grid dimension`),
+                            levels = c("KM:WCSS8", "GA:TOT15", "GA:TOT8")))) +
+  geom_boxplot() +
+  facet_wrap(~Objective, scales = "free", nrow = 4) +
   theme_bw()
 
 ### OLD

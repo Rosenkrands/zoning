@@ -12,7 +12,7 @@ result <- do.call(
 )
 
 result_filtered <- result %>% 
-  filter(grid_dimension == 8)
+  filter(grid_dimension != 8)
 
 # Load the solutions into a list, with method specified
 solutions <- pbapply::pblapply(
@@ -32,7 +32,7 @@ run_simulation <- function(i) {
     flight = "zoned"
   }
   file = paste0('./simulations/',names(solutions)[[i]])
-  if (file.exists(file)) {cat("File exists, continuing...\n"); return()}
+  # if (file.exists(file)) {cat("File exists, continuing...\n"); return()}
   rslt <- simulation(solutions[[i]], method = method, flight = flight)
   saveRDS(rslt, file = file)
 }

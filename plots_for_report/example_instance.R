@@ -83,3 +83,28 @@ ggplot(
   theme(legend.position = "none")
 
 ggsave('plots_for_report/example_instance_selected_centroids.pdf',width = 4, height = 4)
+
+solution_free <- solve_kmeans(instance, no_of_centers = 3)
+
+centroids <- solution_free$instance %>% 
+  select(`Centroid id`, x.centroid, y.centroid) %>%
+  distinct()
+
+ggplot(solution_free$instance %>%
+         mutate(`Demand point id` = paste0("x[",`Demand point id`,"]"))
+  ) +
+  geom_segment(aes(x = x, y = y, xend = x.centroid, yend = y.centroid),
+               color = "gray") +
+  geom_text(aes(x,y,label=`Demand point id`,color=`Centroid id`), parse=T) +
+  geom_path(data = tibble(x = c(-10,10,10,-10,-10), 
+                          y = c(-10,-10,10,10,-10)) %>%
+              mutate(across(c(x,y), ~.x*1.1)),
+            aes(x,y)) +
+  geom_point(
+    data = centroids,
+    aes(x.centroid, y.centroid, color=`Centroid id`), shape = 10, size = 5
+  ) +
+  theme_void() +
+  theme(legend.position = "none") 
+
+ggsave('plots_for_report/example_instance_selected_centroids_free.pdf',width = 4, height = 4)
