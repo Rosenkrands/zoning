@@ -301,13 +301,24 @@ simulation <- function(
       distance = distanceFunctions::simDistC(
         distances2 %>% select(x.1, y.1, x.2, y.2) %>% data.matrix()
       )
-    )
+    ) %>% group_by(time) %>% summarise(distance = min(distance))
+    
+    distanceSummary <- distances2 %>%
+      summarise(mean = mean(distance),
+                median = median(distance),
+                min = min(distance),
+                max = max(distance),
+                `1th percentile` = quantile(distance, probs = c(.01)),
+                `5th percentile` = quantile(distance, probs = c(.05)),
+                `10th percentile` = quantile(distance, probs = c(.1))) %>%
+      pivot_longer(cols = everything())
     
     metric_list[[n]] <- list("demandPerformance" = demandPerformance, 
                              "agentPerformance" = agentPerformance,
-                             "responseTimePerformance" = responseTimePerformance
-                             #,"distances" = distances2
+                             "responseTimePerformance" = responseTimePerformance,
+                             "distanceSummary" = distanceSummary
                              )
+    
     agentLog_list[[n]] <- agentLog
     utilization_list[[n]] <- agentLog %>% 
       select(id, status, time) %>%
@@ -338,8 +349,10 @@ simulation <- function(
 # sim_result <- simulation(solution = solution, method = "GA")
 # sim_result_zoned <- simulation(solution = solution,
 #                          method = "KMeans", flight = "zoned")
-# sim_result_free <- simulation(solution = solution,
-#                                method = "KMeans", flight = "free")
+# system.time({
+#   sim_result_free <- simulation(solution = solution,
+#                                 method = "KMeans", flight = "free")
+# })
 
 # histogram of safety distances
 # bind_rows(
