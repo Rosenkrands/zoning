@@ -54,7 +54,7 @@ regression_data_TOTARV <-  regression_data %>% filter(`Solution method` %in% c('
 Mean_response_regression_TOTARV <- lm(`Mean response` ~ `Solution method` + `Arrival rate variance` + `Number of UAVs` + `Solution method`:`Arrival rate variance`, data = regression_data_TOTARV)
 summary(Mean_response_regression_TOTARV)
 
-
+k
 
 
 
