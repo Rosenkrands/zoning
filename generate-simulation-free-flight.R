@@ -70,7 +70,7 @@ num_cores <- detectCores(logical = F)
 cl <- makeCluster(num_cores)
 
 parallel::clusterExport(cl, c('solutions', 'simulation'))
-invisible(parallel::clusterEvalQ(cl, library(dplyr)))
+invisible(parallel::clusterEvalQ(cl, {library(dplyr); library(tidyr)}))
 
 pbapply::pblapply(
   params_list,
