@@ -11,8 +11,7 @@ result <- do.call(
   pbapply::pblapply(sol_files %>% as.list(), calc_obj2)
 )
 
-result_filtered <- result %>% 
-  filter(grid_dimension != 8)
+result_filtered <- result #%>% filter(grid_dimension != 8)
 
 # Load the solutions into a list, with method specified
 solutions <- pbapply::pblapply(
@@ -39,7 +38,7 @@ run_simulation <- function(i) {
 
 system.time({
 # set up of parallel computation
-num_cores <- 8 # detectCores(logical = F)
+num_cores <- detectCores(logical = F)
 cl <- makeCluster(num_cores)
 
 parallel::clusterExport(cl, c('solutions', 'simulation'))
