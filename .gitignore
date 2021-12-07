@@ -129,6 +129,6 @@ dmypy.json
 .pyre/
 .Rproj.user
 
-zoning.Rproj
+*.Rproj
 log.txt
 rsconnect/
