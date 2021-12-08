@@ -141,9 +141,27 @@ fulfillment_metrics <- simulation_result %>%
   group_by(instance, `Solution method`, `Arrival rate variance`, `Number of UAVs`, `Flight config`) %>%
   summarise(`Fulfillment ratio` = mean(nCovered/nGenerated, na.rm = TRUE))
 
+distance_metrics <- simulation_result %>%
+  select(instance, `Solution method`, `Arrival rate variance`, `Number of UAVs`, `Flight config`, metric) %>%
+  mutate(distanceSummary = map(metric, ~.x$distanceSummary)) %>%
+  unnest(cols = distanceSummary) %>%
+  mutate(name = str_c("distance ", str_replace(name, "1th", "1st"))) %>%
+  pivot_wider(id_cols = c(instance, `Solution method`, `Arrival rate variance`, `Number of UAVs`, `Flight config`))
+
 regression_data <- inner_join(
   response_time_metrics, fulfillment_metrics,
   by = c("instance", "Solution method", "Arrival rate variance", "Number of UAVs", "Flight config")
+) %>%
+  inner_join(distance_metrics,
+             by = c("instance", "Solution method", "Arrival rate variance", "Number of UAVs", "Flight config"))
+
+# OUR PICK FOR FREE FLIGHT FLIGHT CONFIG IS 0
+saveRDS(
+  regression_data %>% 
+    filter(`Flight config` == "0") %>% 
+    select(-`Flight config`) %>%
+    mutate(`Solution method` = "Free-flight"),
+  './free-flight-data.rds'
 )
 
 regression_data_zoned <- readRDS("./regression-data.rds") %>% 

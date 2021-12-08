@@ -81,10 +81,18 @@ fulfillment_metrics <- simulation_result %>%
   group_by(instance, `Solution method`, `Arrival rate variance`, `Number of UAVs`) %>%
   summarise(`Fulfillment ratio` = mean(nCovered/nGenerated, na.rm = TRUE))
 
+distance_metrics <- simulation_result %>%
+  select(instance, `Solution method`, `Arrival rate variance`, `Number of UAVs`, metric) %>%
+  mutate(distanceSummary = map(metric, ~.x$distanceSummary)) %>%
+  unnest(cols = distanceSummary) %>%
+  mutate(name = str_c("distance ", str_replace(name, "1th", "1st"))) %>%
+  pivot_wider(id_cols = c(instance, `Solution method`, `Arrival rate variance`, `Number of UAVs`))
+
 regression_data <- inner_join(
   response_time_metrics, fulfillment_metrics,
   by = c("instance", "Solution method", "Arrival rate variance", "Number of UAVs")
-)
+) %>% inner_join(distance_metrics,
+                 by = c("instance", "Solution method", "Arrival rate variance", "Number of UAVs"))
 
 saveRDS(regression_data, file = './regression-data.rds')
 
