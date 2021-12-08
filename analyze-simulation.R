@@ -92,7 +92,8 @@ regression_data <- inner_join(
   response_time_metrics, fulfillment_metrics,
   by = c("instance", "Solution method", "Arrival rate variance", "Number of UAVs")
 ) %>% inner_join(distance_metrics,
-                 by = c("instance", "Solution method", "Arrival rate variance", "Number of UAVs"))
+                 by = c("instance", "Solution method", "Arrival rate variance", "Number of UAVs")) %>%
+  bind_rows(readRDS('./free-flight-data.rds'))
 
 saveRDS(regression_data, file = './regression-data.rds')
 
