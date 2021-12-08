@@ -8,6 +8,24 @@ result <- do.call(
   pbapply::pblapply(sol_files %>% as.list(), calc_obj2)
 ) 
 
+result %>% rowwise() %>% mutate(
+  `Solution method` = factor(paste0(method,':',obj),
+                             levels = c("GA:ARV", "GA:SAFE", "GA:TOT", "KM:WCSS")),
+  `Number of UAVs` = factor(as.numeric(no_of_centers),
+                            levels = c(5, 10, 15),
+                            labels = c("low", "medium", "high")),
+  `Arrival rate variance` = factor(ar_var, 
+                                   levels = c(20,50,80),
+                                   labels = c("low", "medium", "high")),
+  grid_dimension = ifelse(str_split(file,'_')[[1]][5] == 20, 25, grid_dimension),
+  `Grid dimension` = factor(
+    grid_dimension,
+    levels = c(8,15,25)
+  )
+) %>%
+  select(-c(method, obj, ar_var)) %>%
+  saveRDS('./no-demand-points.rds')
+
 result <- result %>% rowwise() %>% mutate(
   `Solution method` = factor(paste0(method,':',obj),
                              levels = c("GA:ARV", "GA:SAFE", "GA:TOT", "KM:WCSS")),
