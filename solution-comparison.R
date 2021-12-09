@@ -10,7 +10,7 @@ result <- do.call(
 
 result %>% rowwise() %>% mutate(
   `Solution method` = factor(paste0(method,':',obj),
-                             levels = c("GA:ARV", "GA:SAFE", "GA:TOT", "KM:WCSS")),
+                             levels = c("GA:ARV", "GA:SAFE", "GA:TOT", "KM:WCSS", "WKM:WWCSS")),
   `Number of UAVs` = factor(as.numeric(no_of_centers),
                             levels = c(5, 10, 15),
                             labels = c("low", "medium", "high")),
@@ -28,7 +28,7 @@ result %>% rowwise() %>% mutate(
 
 result <- result %>% rowwise() %>% mutate(
   `Solution method` = factor(paste0(method,':',obj),
-                             levels = c("GA:ARV", "GA:SAFE", "GA:TOT", "KM:WCSS")),
+                             levels = c("GA:ARV", "GA:SAFE", "GA:TOT", "KM:WCSS", "WKM:WWCSS")),
   `Number of UAVs` = factor(as.numeric(no_of_centers),
                             levels = c(5, 10, 15),
                             labels = c("low", "medium", "high")),
@@ -81,7 +81,8 @@ result %>%
 # We expect that GA:TOT outperforms KMeans for TOT objective
 # in the high variance case
 result %>%
-  filter(`Solution method` %in% c("GA:TOT", "KM:WCSS")) %>%
+  filter(`Grid dimension` == 8) %>%
+  filter(`Solution method` %in% c("GA:TOT", "KM:WCSS", "WKM:WWCSS")) %>%
   filter(Objective %in% c("TOT", "WCSS")) %>%
   ggplot(aes(x = `Arrival rate variance`, 
              y = `Objective value`,

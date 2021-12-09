@@ -28,7 +28,8 @@ parallel::stopCluster(cl)
 
 params <- bind_rows(
   # expand.grid(names(instances),c("GA"),c("ARV", "SAFE", "TOT"),c(5,10,15)),
-  expand.grid(names(instances),c("KM"), c("WCSS"), c(5,10,15))
+  # expand.grid(names(instances),c("KM"), c("WCSS"), c(5,10,15)),
+  expand.grid(names(instances),c("WKM"), c("WWCSS"), c(5,10,15))
 ) %>%
   rename(instance = Var1, Method = Var2, Obj = Var3, no_of_centers = Var4) %>%
   tibble() %>%
@@ -48,10 +49,10 @@ solve_n_save <- function(param) {
     ncent,'.rds'
   )
   
-  if (file.exists(file)) {cat("File exists, continuing...\n"); return()}
+  # if (file.exists(file)) {cat("File exists, continuing...\n"); return()}
   
-  if (method == "KM") {
-    solution <- solve_kmeans(instances[[instance]], no_of_centers = ncent)
+  if (method == "WKM") {
+    solution <- solve_wkmeans(instances[[instance]], no_of_centers = ncent)
   } else if (method == "GA") {
     sink("./log.txt")
     solution <- solve_ga(
@@ -77,9 +78,10 @@ cl <- parallel::makeCluster(num_cores)
 parallel::clusterExport(cl, c('grid_centroids',
                               'euclid_norm',
                               'solve_ga',
-                              'centroids',
+                              # 'centroids',
                               'instances',
-                              'solve_kmeans'))
+                              'solve_kmeans',
+                              'solve_wkmeans'))
 invisible(parallel::clusterEvalQ(cl, library(dplyr)))
 invisible(parallel::clusterEvalQ(cl, library(distanceFunctions)))
 

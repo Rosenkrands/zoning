@@ -10,7 +10,7 @@ generate_2d_instance <- function(
   seed = NULL,
   no_of_points = 50, 
   interval = c("min" = -10, "max" = 10),
-  arv = c("min" = 20, "max" = 60)
+  arv = c("min" = 0, "max" = 80)
 ) {
   id <- 1:no_of_points
   set.seed(seed)
@@ -217,6 +217,30 @@ solve_kmeans <- function(instance, no_of_centers = 5) {
               "instance" = instance))
 }
 
+solve_wkmeans <- function(instance, no_of_centers = 5) {
+  coordinates <- instance$data %>% select(x, y)
+  
+  centroids <- flexclust::stepFlexclust(x = coordinates, k = no_of_centers, nrep = 100000,
+                           weights = instance$data$`Arrival rate`, FUN = "cclust",
+                           dist = "euclidean", verbose = F,
+                           method = "hardcl", control = list(iter.max = 100))
+  # 
+  clusters <- as.data.frame(centroids@centers)
+  clustering_vector <- centroids@cluster
+  
+  instance <- instance$data %>% 
+    mutate("Centroid id" = clustering_vector %>% as.character()) %>%
+    left_join(
+      tibble(clusters) %>% mutate(`Centroid id` = row_number() %>% as.character()), 
+      by =c("Centroid id"), suffix = c("",".centroid")
+    )
+  
+  return(list("clusters" = clusters,
+              "clustering_vector" = clustering_vector, 
+              "no_of_centers" = no_of_centers,
+              "instance" = instance))
+}
+
 plot_2d <- function(instance, centroids, solution, type) {
   if ("Centroid id" %in% colnames(instance$data)) {
     instance$data <- instance$data %>% select(-`Centroid id`)
@@ -352,7 +376,7 @@ plot_network <- function(instance, solution) {
   ggplot(solution$instance) +
     geom_segment(aes(x = x, y = y, xend = x.centroid, yend = y.centroid),
                  color = "gray") +
-    geom_point(aes(x,y, color = `Centroid id`)) +
+    geom_point(aes(x,y, color = `Centroid id`, size = `Arrival rate`)) +
     geom_point(
       data = centroids, 
       aes(x.centroid, y.centroid, color=`Centroid id`), shape = 10, size = 5
@@ -373,7 +397,10 @@ plot_network <- function(instance, solution) {
 # # plot_2d(instance, centroids, solution, type = "centroid")
 # 
 # solution_ga <- solve_ga(instance, centroids, no_of_centers = 5, obj = "SAFE")
-# solution_km <- solve_kmeans(instance, no_of_centers = 5)
+# solution_km <- solve_wkmeans(instance, no_of_centers = 5)
+
+# plot_network(instance, solution = solution_km)
+
 # 
 # plot_2d(instance, centroids, solution, type = "chosen")
 # plot_2d(instance, centroids, solution, type = "group")
