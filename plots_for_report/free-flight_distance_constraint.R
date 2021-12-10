@@ -20,7 +20,7 @@ plot_range_constraint <- function(num_uav, sol_method = "GA:TOT", n = 0) {
   
   plot_data <- filtered %>% filter(instance == selected_instance)
   
-  solution = readRDS(paste0('./solution_for_simulation/',(plot_data %>% filter(`Solution method` == sol_methods[1]))$file))
+  solution = readRDS(paste0('./solution_for_simulation/',(plot_data %>% filter(`Solution method` == sol_method))$file))
   
   centroids <- solution$instance %>% 
     select(`Centroid id`, x.centroid, y.centroid) %>%
@@ -48,7 +48,7 @@ plot_range_constraint <- function(num_uav, sol_method = "GA:TOT", n = 0) {
     ) + theme_void() + coord_fixed() + theme(plot.margin=grid::unit(c(0,0,0,0), "mm"))
 }
 
-plot_range_constraint(num_uav = "low")
+plot_range_constraint(num_uav = "low", sol_method = "GA:TOT")
 ggsave('./plots_for_report/free-flight_range_constraint.pdf', width = 6.5, height = 4.5)
 
 ## SIMULATION RESULTS FOR THE DIFFERENT FLIGHT CONFIGURATIONS
