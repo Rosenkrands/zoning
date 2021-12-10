@@ -7,7 +7,7 @@ source('2d-instance.R')
 # Here we set the dimensions for the GA to use
 dimensions <- seq(9,9,1)
 
-files <- list.files('./instances')
+files <- list.files('./tuning_instances')
 direcs <- as.list(files)
 names(direcs) <- vapply(
   files,
@@ -15,7 +15,7 @@ names(direcs) <- vapply(
   "XXXXX"
 )
 
-instances <- lapply(direcs, load_instance)
+instances <- lapply(direcs, function(hexadec) readRDS(paste0('./tuning_instances/', hexadec)))
 cat("Pre calculating grid centroids for all instances\n")
 
 num_cores <- parallel::detectCores(logical = F)
@@ -41,8 +41,8 @@ parallel::stopCluster(cl)
 # construct all combinations of instances and solution methods
 
 params <- bind_rows(
-  expand.grid(names(instances),c("GA"),c("SAFE","TOT","ARV"), dimensions,c("run500")),
-  # expand.grid(names(instances),c("KM"), c("WCSS"), c(NA), c(NA))
+  # expand.grid(names(instances),c("GA"),c("SAFE","TOT","ARV"), dimensions,c("run500")),
+  expand.grid(names(instances),c("WKM"), c("WWCSS"), c(NA), c(NA))
 ) %>%
   rename(instance = Var1, Method = Var2, Obj = Var3, dimension = Var4, miter = Var5) %>%
   tibble() %>%
@@ -77,8 +77,8 @@ solve_n_save <- function(param) {
   
   if (file.exists(file)) {cat("File exists, continuing...\n"); return()}
   
-  if (method == "KM") {
-    solution <- solve_kmeans(instances[[instance]], no_of_centers = ncent)
+  if (method == "WKM") {
+    solution <- solve_wkmeans(instances[[instance]], no_of_centers = ncent)
   } else if (method == "GA") {
     cat(instance, dimension, 100000, '\n')
     sink("./log.txt")
@@ -103,9 +103,9 @@ parallel::clusterExport(cl, c('grid_centroids',
                               'euclid_norm',
                               'dimensions',
                               'solve_ga',
-                              'centroids',
+                              # 'centroids',
                               'instances', 
-                              'solve_kmeans'))
+                              'solve_wkmeans'))
 invisible(parallel::clusterEvalQ(cl, library(dplyr)))
 invisible(parallel::clusterEvalQ(cl, library(anRpackage)))
 

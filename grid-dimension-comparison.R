@@ -10,7 +10,7 @@ result <- do.call(
 
 data <- result %>%
   filter(miter == 'run500') %>%
-  filter((obj == "TOT") | (method == "KM")) %>%
+  filter((obj == "TOT") | (method %in% c("KM","WKM"))) %>%
   group_by(method,obj,dimension,miter) %>%
   summarise(across(c(ARV, TOT, WCSS), mean)) %>%
   mutate(dimension = as.numeric(dimension))
@@ -32,7 +32,7 @@ ggplot(per_instance) +
   geom_point(aes(x = instance, y = WCSS, color = method))
 
 km_tot <- data %>% 
-  filter(method == "KM") %>%
+  filter(method == "WKM") %>%
   ungroup() %>%
   select(TOT) %>%
   as.numeric()
@@ -50,10 +50,10 @@ ggplot() +
 
 ggsave('./plots_for_report/grid_dimension_comparison.pdf', width = 8, height = 3)
 
-km_data <- result %>% filter(method == "KM")
+km_data <- result %>% filter(method == "WKM")
 
 ga_data <- result %>%
-  filter(method != "KM", miter == "run500", obj == "TOT") %>%
+  filter(method != "WKM", method != "KM", miter == "run500", obj == "TOT") %>%
   left_join(km_data %>% select(instance, TOT), 
             by = "instance", suffix = c(".ga", ".km")) %>%
   mutate(TOT_gap = (TOT.ga - TOT.km)*100/TOT.ga) %>%
