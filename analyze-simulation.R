@@ -26,7 +26,7 @@ result <- do.call(
 
 result <- result %>% rowwise() %>% mutate(
   `Solution method` = factor(paste0(method,':',obj),
-                             levels = c("GA:ARV", "GA:SAFE", "GA:TOT", "KM:WCSS")),
+                             levels = c("GA:ARV", "GA:SAFE", "GA:TOT", "KM:WCSS", "WKM:WWCSS")),
   `Number of UAVs` = factor(as.numeric(no_of_centers),
                             levels = c(5, 10, 15),
                             labels = c("low", "medium", "high")),
@@ -174,7 +174,7 @@ rrd_data <- simulation_result %>%
   unnest(cols = metric) %>%
   mutate(metric = map(metric, ~.x$responseTimePerformance)) %>%
   unnest(cols = metric) %>%
-  filter(`Solution method` %in% c("GA:TOT","KM:WCSS"),
+  filter(`Solution method` %in% c("GA:TOT", "WKM:WWCSS"),
          `Number of UAVs` %in% c("low","medium", "high"),
          `Arrival rate variance` %in% c("low", "medium", "high"))
 
