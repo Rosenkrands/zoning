@@ -92,7 +92,7 @@ result_filtered <- result %>%
 
 result_filtered <- result_filtered %>% mutate(
   `Solution method` = factor(paste0(method,':',obj),
-                             levels = c("GA:ARV", "GA:SAFE", "GA:TOT", "KM:WCSS")),
+                             levels = c("GA:ARV", "GA:SAFE", "GA:TOT", "KM:WCSS", "WKM:WWCSS")),
   `Number of UAVs` = factor(as.numeric(no_of_centers),
                             levels = c(5, 10, 15),
                             labels = c("low", "medium", "high")),
