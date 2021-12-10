@@ -53,19 +53,20 @@ ggsave('./plots_for_report/free-flight_range_constraint.pdf', width = 6.5, heigh
 
 ## SIMULATION RESULTS FOR THE DIFFERENT FLIGHT CONFIGURATIONS
 
-ff_plot_data <- readRDS('./free-flight-simulation.rds')
+ff_plot_data <- readRDS('./free-flight-simulation.rds') %>%
+  mutate(`Flight configuration` = factor(
+    `Flight config`,
+    levels = c("Zoned", "0", ".2", ".5", "No constraint"),
+    labels = c("Zoning", "Scaling factor: 0", "Scaling factor: 0.2", "Scaling factor: 0.5", "No distance constraint")
+    )
+  )
 
 ff_plot_data %>%
-  ggplot(aes(x = `Arrival rate variance`, y = `Mean response`, fill = `Flight config`)) +
-  geom_col(position = position_dodge()) +
-  facet_wrap(~`Number of UAVs`, labeller = label_both)
+  pivot_longer(cols = c(`Mean response`, `Fulfillment ratio`), names_to = "Measure") %>%
+  mutate(Measure = factor(Measure, levels = c("Mean response", "Fulfillment ratio"))) %>%
+  ggplot(aes(x = `Arrival rate variance`, y = value, fill = `Flight configuration`)) +
+  geom_col(position = position_dodge(), color = "black") +
+  facet_grid(Measure~`Number of UAVs`, scales = "free", labeller = label_both) + 
+  theme_bw() + labs(y="")
 
-ff_plot_data %>%
-  ggplot(aes(x = `Arrival rate variance`, y = `90th percentile response`, fill = `Flight config`)) +
-  geom_col(position = position_dodge()) +
-  facet_wrap(~`Number of UAVs`, labeller = label_both)
-
-ff_plot_data %>%
-  ggplot(aes(x = `Arrival rate variance`, y = `Fulfillment ratio`, fill = `Flight config`)) +
-  geom_col(position = position_dodge()) +
-  facet_wrap(~`Number of UAVs`, labeller = label_both)
+ggsave('./plots_for_report/measures_free_flight.pdf', width = 9, height = 4)
