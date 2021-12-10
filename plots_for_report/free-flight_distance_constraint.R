@@ -16,7 +16,7 @@ plot_range_constraint <- function(num_uav, sol_method = "GA:TOT", n = 0) {
            `Solution method` == sol_method)
   
   instances <- unique(filtered$instance)
-  selected_instance <- instances[1]#sample(1:length(instances),1)]  
+  selected_instance <- instances[10]#sample(1:length(instances),1)]  
   
   plot_data <- filtered %>% filter(instance == selected_instance)
   
@@ -24,34 +24,32 @@ plot_range_constraint <- function(num_uav, sol_method = "GA:TOT", n = 0) {
   
   centroids <- solution$instance %>% 
     select(`Centroid id`, x.centroid, y.centroid) %>%
-    distinct()
-  
-  max_dist <- solution$instance %>%
-    mutate(distance = sqrt((x - x.centroid)^2 + (y - y.centroid)^2)) %>%
-    summarise(distance = max(distance) + n * switch(num_uav, low = 5, medium = 10, high = 15))
+    distinct() %>%
+    mutate(r = (solution$instance %>%
+      mutate(distance = sqrt((x - x.centroid)^2 + (y - y.centroid)^2)) %>%
+      summarise(distance = max(distance)))$distance
+    )
   
   ggplot(solution$instance) +
     geom_segment(aes(x = x, y = y, xend = x.centroid, yend = y.centroid),
-                 color = "gray") +
+                 color = "grey") +
+    ggforce::geom_circle(
+      data = centroids %>% 
+        left_join(tibble(n = c(0,0.2,0.5)), by = character()) %>%
+        mutate(r = r + n*switch(num_uav, low = 5, medium = 10, high = 15),
+               `Scaling factor` = factor(n)),
+      aes(x0 = x.centroid, y0 = y.centroid, r = r, fill = `Centroid id`, linetype = `Scaling factor`),
+      alpha = .1, color = "grey"
+    ) +
     geom_point(aes(x,y, color = `Centroid id`)) +
     geom_point(
       data = centroids, 
       aes(x.centroid, y.centroid, color=`Centroid id`), shape = 10, size = 5
-    ) +
-    ggforce::geom_circle(
-      data = centroids,
-      aes(x0 = x.centroid, y0 = y.centroid, r = max_dist$distance, fill = `Centroid id`),
-      alpha = .1, color = "grey"
-    ) +
-    scale_x_continuous(limits = c(-15, 15)) +
-    scale_y_continuous(limits = c(-15, 15)) + theme_void() + coord_fixed() +
-    theme(legend.position = "none")
+    ) + theme_void() + coord_fixed() + theme(plot.margin=grid::unit(c(0,0,0,0), "mm"))
 }
 
-plot_range_constraint(num_uav = "low", n = 0)
-plot_range_constraint(num_uav = "low", n = .2)
-plot_range_constraint(num_uav = "low", n = .5)
-
+plot_range_constraint(num_uav = "low")
+ggsave('./plots_for_report/free-flight_range_constraint.pdf', width = 6.5, height = 4.5)
 
 ## SIMULATION RESULTS FOR THE DIFFERENT FLIGHT CONFIGURATIONS
 
