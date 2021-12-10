@@ -37,7 +37,7 @@ solution_results %>%
 ### Violin plot showing the distribution of objectives for ARV and SAFE ###
 solution_results %>%
   # filter(`Arrival rate variance` == "high", `Number of UAVs` == "low") %>%
-  filter(Objective %in% c("ARV")) %>%
+  filter(Objective %in% c("ARV"), `Solution method` != "KM:WCSS") %>%
   group_by(`Solution method`,`Number of UAVs`, `Arrival rate variance`, Objective) %>%
   ggplot(aes(x = `Solution method`, 
              y = `Objective value`)) +
@@ -50,7 +50,7 @@ ggsave('./plots_for_report/comparing_solutions_arv.pdf', width = 4, height = 3)
 
 solution_results %>%
   # filter(`Arrival rate variance` == "high", `Number of UAVs` == "low") %>%
-  filter(Objective %in% c("SAFE")) %>%
+  filter(Objective %in% c("SAFE"), `Solution method` != "KM:WCSS") %>%
   group_by(`Solution method`,`Number of UAVs`, `Arrival rate variance`, Objective) %>%
   ggplot(aes(x = `Solution method`, 
              y = `Objective value`)) +
@@ -65,7 +65,7 @@ ggsave('./plots_for_report/comparing_solutions_safe.pdf', width = 4, height = 3)
 # We expect that GA:TOT outperforms KMeans for TOT objective
 # in the high variance case
 solution_results %>%
-  filter(`Solution method` %in% c("GA:TOT", "KM:WCSS")) %>%
+  filter(`Solution method` %in% c("GA:TOT", "KM:WCSS", "WKM:WWCSS")) %>%
   filter(Objective %in% c("TOT"), `Arrival rate variance` %in% c("low", "medium")) %>%
   ggplot(aes(y = `Number of UAVs`, 
              x = `Objective value`,
@@ -82,11 +82,11 @@ ggsave('./plots_for_report/comparing_GATOT_KMWCSS_TOT.pdf', width = 9, height = 
 # in the high variance case
 readRDS('./solution-results.rds') %>%
   filter(`Grid dimension` %in% c(8, 15)) %>%
-  filter(`Solution method` %in% c("GA:TOT", "KM:WCSS")) %>%
+  filter(`Solution method` %in% c("GA:TOT", "KM:WCSS", "WKM:WWCSS")) %>%
   filter(Objective %in% c("TOT"), `Arrival rate variance` == "high") %>%
   mutate(`Solution method` = factor(
     paste0(`Solution method`,":",`Grid dimension`),
-    levels = c("GA:TOT:15", "GA:TOT:8", "KM:WCSS:8"), labels = c("GA:TOT 15x15 grid", "GA:TOT 8x8 grid", "KM:WCSS")
+    levels = c("GA:TOT:15", "GA:TOT:8", "WKM:WWCSS:8", "KM:WCSS:8"), labels = c("GA:TOT 15x15 grid", "GA:TOT 8x8 grid", "WKM:WWCSS", "KM:WCSS")
   )) %>%
   ggplot(aes(y = `Number of UAVs`, 
              x = `Objective value`,
@@ -94,7 +94,7 @@ readRDS('./solution-results.rds') %>%
   geom_boxplot() +
   facet_wrap(~`Arrival rate variance`, scales = "free", nrow = 1, labeller = label_both) +
   theme_bw() + labs(x = "TOT Objective") + theme(legend.position = "top") +
-  scale_fill_manual(values = c("#00BA42", "#F8766D", "#00BFC4"))
+  scale_fill_manual(values = c("#00BA42", "#F8766D", "#00BFC4", "#C77CFF"))
 
 ggsave('./plots_for_report/comparing_GATOT_KMWCSS_TOT_high_dimension.pdf', width = 9, height = 4)
 
@@ -113,16 +113,16 @@ ggsave('./plots_for_report/comparing_GATOT_KMWCSS_TOT_high_dimension.pdf', width
 # 
 # ggsave('./plots_for_report/mean_objective_ga_km.pdf', width = 10, height = 2)
 
-### TESTING SIGNIFICANCE WITH HIGH DIMENSION
+### TESTING SIGNIFICANCE WITH HIGH DIMENSION (not significant  p=.15)
 
 ga_high <- readRDS('./solution-results.rds') %>%
   filter(`Grid dimension` == 15, `Solution method` == "GA:TOT")
 
 km_high <- readRDS('./solution-results.rds') %>% 
-  filter(instance %in% ga_high$instance, `Solution method` == "KM:WCSS")
+  filter(instance %in% ga_high$instance, `Solution method` == "WKM:WWCSS")
 
 lm_data <- bind_rows(ga_high, km_high) %>%
-  filter(`Solution method` %in% c("GA:TOT", "KM:WCSS")) %>%
+  filter(`Solution method` %in% c("GA:TOT", "WKM:WWCSS")) %>%
   filter(Objective %in% c("TOT")) %>%
   pivot_wider(id_cols = c(instance, `Number of UAVs`, `Arrival rate variance`, `Solution method`),
               names_from = Objective, values_from = `Objective value`)
@@ -132,16 +132,30 @@ lm.fit <- lm(TOT ~ `Solution method`,
 
 summary(lm.fit)
 
-### TESTING SIGNIFICANCE WITH LOW DIMENSION
+### TESTING SIGNIFICANCE WITH LOW DIMENSION (not significant p=.51)
 
 lm_data <- readRDS('./solution-results.rds') %>%
   filter(`Grid dimension` == 8) %>%
-  filter(`Solution method` %in% c("GA:TOT", "KM:WCSS")) %>%
+  filter(`Solution method` %in% c("GA:TOT", "WKM:WWCSS")) %>%
   filter(Objective %in% c("TOT")) %>%
   pivot_wider(id_cols = c(instance, `Number of UAVs`, `Arrival rate variance`, `Solution method`),
               names_from = Objective, values_from = `Objective value`)
 
 lm.fit <- lm(TOT ~ `Solution method`,
              data = lm_data %>% filter(`Arrival rate variance` == "high", `Number of UAVs` == "high"))
+
+summary(lm.fit)
+
+### TESTING SIGNIFICANCE WITH LOW DIMENSION and low number of UAVs (significant p=.02)
+
+lm_data <- readRDS('./solution-results.rds') %>%
+  filter(`Grid dimension` == 8) %>%
+  filter(`Solution method` %in% c("GA:TOT", "WKM:WWCSS")) %>%
+  filter(Objective %in% c("TOT")) %>%
+  pivot_wider(id_cols = c(instance, `Number of UAVs`, `Arrival rate variance`, `Solution method`),
+              names_from = Objective, values_from = `Objective value`)
+
+lm.fit <- lm(TOT ~ `Solution method`,
+             data = lm_data %>% filter(`Arrival rate variance` == "high", `Number of UAVs` == "low"))
 
 summary(lm.fit)
