@@ -97,77 +97,46 @@ regression_data <- inner_join(
 
 saveRDS(regression_data, file = './regression-data.rds')
 
-# safety distances
-ggplot() +
-  geom_histogram(data = data$metric[3][[1]][[1]]$distances %>% mutate(obj = "TOT"),
-                 aes(x = distance)) +
-  geom_histogram(data = data$metric[6][[1]][[1]]$distances %>% mutate(obj = "WCSS"),
-                 aes(x = distance)) +
-  facet_wrap(~obj, nrow = 2)
+### Plot network for solution
 
-plot_network(
-  instance = NULL,
-  solution = readRDS(paste0('./solution_for_simulation/',data$file[3]))
-) + ggtitle("obj = TOT")
+# First choose a level for each of the factors
+num_uav = "high"; arv = "high"
 
-plot_network(
-  instance = NULL,
-  solution = readRDS(paste0('./solution_for_simulation/',data$file[6]))
-) + ggtitle("obj = WCSS")
+# Choose solution methods to display solutions for
+sol_methods = c("GA:TOT", "WKM:WWCSS")
 
-# effectiveness
-mean_coverage <- function(x) {
-  mc <- do.call(
-    bind_rows,
-    lapply(
-      x,
-      function(z) z$demandPerformance %>% 
-        summarise(demand_coverage = sum(nCovered)/sum(nGenerated))
-    )
-  )
-  as.numeric(mc)
-}
+filtered <- simulation_result %>%
+  filter(`Number of UAVs` == num_uav, 
+         `Arrival rate variance` == arv,
+         `Solution method` %in% sol_methods)
 
-# test <- data %>%
-#   rowwise() %>%
-#   mutate(mean_coverage = mean_coverage(metric)) %>%
-#   select(instance, method, obj, no_of_centers, mean_coverage)
+instances <- unique(filtered$instance)
+selected_instance <- instances[sample(1:length(instances),1)]  
 
-simulation_result %>%
-  filter(`Solution method` %in% c("GA:TOT", "KM:WCSS"),
-         `Number of UAVs` %in% c("low","medium","high"),
-         `Arrival rate variance` %in% c("low","medium","high")) %>%
-  rowwise() %>%
-  mutate(mean_coverage = mean_coverage(metric)) %>%
-  select(-c(metric, utilization)) %>%
-  group_by(`Solution method`, `Number of UAVs`, `Arrival rate variance`) %>%
-  summarise(t = (sd(mean_coverage)/sqrt(20))*pt(c(.975), 1),
-            mean_coverage = mean(mean_coverage)) %>%
-  ggplot(aes(x = `Arrival rate variance`,
-             y = mean_coverage,
-             fill = `Solution method`)) +
-  geom_bar(stat = "identity", color = "black", position = position_dodge()) +
-  geom_errorbar(aes(ymin = mean_coverage - t, ymax = mean_coverage + t),
-                position = position_dodge(.9), width = .2) +
-  facet_wrap(~ `Number of UAVs`, nrow = 1)
+plot_data <- filtered %>% filter(instance == selected_instance)
 
-simulation_result %>%
-  filter(`Solution method` %in% c("GA:TOT", "KM:WCSS"),
-         `Number of UAVs` %in% c("low","medium","high"),
-         `Arrival rate variance` %in% c("low","medium","high")) %>%
-  rowwise() %>%
-  mutate(mean_response = mean_response(metric)) %>%
-  select(-c(metric, utilization)) %>%
-  group_by(`Solution method`, `Number of UAVs`, `Arrival rate variance`) %>%
-  summarise(t = (sd(mean_response)/sqrt(20))*pt(c(.975), 1),
-            mean_response = mean(mean_response)) %>%
-  ggplot(aes(x = `Arrival rate variance`,
-             y = mean_response,
-             fill = `Solution method`)) +
-  geom_bar(stat = "identity", color = "black", position = position_dodge()) +
-  geom_errorbar(aes(ymin = mean_response - t, ymax = mean_response + t),
-                position = position_dodge(.9), width = .2) +
-  facet_wrap(~ `Number of UAVs`, nrow = 1)
+cowplot::plot_grid(
+  # col 1
+  cowplot::plot_grid(
+    plot_network(
+      instance = NULL,
+      solution = readRDS(paste0('./solution_for_simulation/',(plot_data %>% filter(`Solution method` == sol_methods[1]))$file))
+    ) + ggtitle(paste0(sol_methods[1])) + theme(legend.position = "none", plot.background = element_rect(color = "black"))
+  ),
+  
+  # col 2
+  cowplot::plot_grid(
+    plot_network(
+      instance = NULL,
+      solution = readRDS(paste0('./solution_for_simulation/',(plot_data %>% filter(`Solution method` == sol_methods[2]))$file))
+    ) + ggtitle(paste0(sol_methods[2])) + theme(legend.position = "none", plot.background = element_rect(color = "black"))  
+  )  
+)
+
+
+
+
+
 
 # Response rate distribution
 rrd_data <- simulation_result %>%
@@ -191,3 +160,65 @@ rrd_data %>%
   # geom_vline(data = rrd_mean_data, aes(xintercept = mean_responseTime, color = `Solution method`)) +
   facet_grid(`Number of UAVs`~`Arrival rate variance`, labeller = label_both) +
   theme_bw()
+
+# # safety distances
+# ggplot() +
+#   geom_histogram(data = data$metric[3][[1]][[1]]$distances %>% mutate(obj = "TOT"),
+#                  aes(x = distance)) +
+#   geom_histogram(data = data$metric[6][[1]][[1]]$distances %>% mutate(obj = "WCSS"),
+#                  aes(x = distance)) +
+#   facet_wrap(~obj, nrow = 2)
+
+# # effectiveness
+# mean_coverage <- function(x) {
+#   mc <- do.call(
+#     bind_rows,
+#     lapply(
+#       x,
+#       function(z) z$demandPerformance %>% 
+#         summarise(demand_coverage = sum(nCovered)/sum(nGenerated))
+#     )
+#   )
+#   as.numeric(mc)
+# }
+# 
+# # test <- data %>%
+# #   rowwise() %>%
+# #   mutate(mean_coverage = mean_coverage(metric)) %>%
+# #   select(instance, method, obj, no_of_centers, mean_coverage)
+# 
+# simulation_result %>%
+#   filter(`Solution method` %in% c("GA:TOT", "KM:WCSS"),
+#          `Number of UAVs` %in% c("low","medium","high"),
+#          `Arrival rate variance` %in% c("low","medium","high")) %>%
+#   rowwise() %>%
+#   mutate(mean_coverage = mean_coverage(metric)) %>%
+#   select(-c(metric, utilization)) %>%
+#   group_by(`Solution method`, `Number of UAVs`, `Arrival rate variance`) %>%
+#   summarise(t = (sd(mean_coverage)/sqrt(20))*pt(c(.975), 1),
+#             mean_coverage = mean(mean_coverage)) %>%
+#   ggplot(aes(x = `Arrival rate variance`,
+#              y = mean_coverage,
+#              fill = `Solution method`)) +
+#   geom_bar(stat = "identity", color = "black", position = position_dodge()) +
+#   geom_errorbar(aes(ymin = mean_coverage - t, ymax = mean_coverage + t),
+#                 position = position_dodge(.9), width = .2) +
+#   facet_wrap(~ `Number of UAVs`, nrow = 1)
+# 
+# simulation_result %>%
+#   filter(`Solution method` %in% c("GA:TOT", "KM:WCSS"),
+#          `Number of UAVs` %in% c("low","medium","high"),
+#          `Arrival rate variance` %in% c("low","medium","high")) %>%
+#   rowwise() %>%
+#   mutate(mean_response = mean_response(metric)) %>%
+#   select(-c(metric, utilization)) %>%
+#   group_by(`Solution method`, `Number of UAVs`, `Arrival rate variance`) %>%
+#   summarise(t = (sd(mean_response)/sqrt(20))*pt(c(.975), 1),
+#             mean_response = mean(mean_response)) %>%
+#   ggplot(aes(x = `Arrival rate variance`,
+#              y = mean_response,
+#              fill = `Solution method`)) +
+#   geom_bar(stat = "identity", color = "black", position = position_dodge()) +
+#   geom_errorbar(aes(ymin = mean_response - t, ymax = mean_response + t),
+#                 position = position_dodge(.9), width = .2) +
+#   facet_wrap(~ `Number of UAVs`, nrow = 1)
