@@ -28,6 +28,26 @@ nuav_gg <- ggplot(regression_data, aes(x = `Number of UAVs`, y = `Mean response`
     labs(y = "")
 plot_grid(solmet_gg, arvar_gg, nuav_gg, ncol = 3, axis = 'l', rel_widths = c(2, 1, 1))  
 
+solmet_gg <- ggplot(regression_data, aes(x = `Solution method`, y = `90th percentile response`) ) +
+  geom_boxplot() 
+arvar_gg <- ggplot(regression_data, aes(x = `Arrival rate variance`, y = `90th percentile response`) ) +
+  geom_boxplot() +
+  labs(y = "")
+nuav_gg <- ggplot(regression_data, aes(x = `Number of UAVs`, y = `90th percentile response`) ) +
+  geom_boxplot() +
+  labs(y = "")
+plot_grid(solmet_gg, arvar_gg, nuav_gg, ncol = 3, axis = 'l', rel_widths = c(2, 1, 1))  
+
+solmet_gg <- ggplot(regression_data, aes(x = `Solution method`, y = `Fulfillment ratio`) ) +
+  geom_boxplot() 
+arvar_gg <- ggplot(regression_data, aes(x = `Arrival rate variance`, y = `Fulfillment ratio`) ) +
+  geom_boxplot() +
+  labs(y = "")
+nuav_gg <- ggplot(regression_data, aes(x = `Number of UAVs`, y = `Fulfillment ratio`) ) +
+  geom_boxplot() +
+  labs(y = "")
+plot_grid(solmet_gg, arvar_gg, nuav_gg, ncol = 3, axis = 'l', rel_widths = c(2, 1, 1))  
+
 perresp_gg <- ggplot(regression_data, aes(x = `Solution method`, y = `90th percentile response`) ) +
     geom_boxplot()
 fulrat_gg <- ggplot(regression_data, aes(x = `Solution method`, y = `Fulfillment ratio`) ) +
@@ -35,13 +55,13 @@ fulrat_gg <- ggplot(regression_data, aes(x = `Solution method`, y = `Fulfillment
 plot_grid(perresp_gg, fulrat_gg, ncol = 2, axis = 'l')
 
 # Appendix
-solmet_gg <- ggplot(regression_data, aes(x = `Solution method`, y = `Fulfillment ratio`) ) +
-  geom_boxplot() 
-arvar_gg <- ggplot(regression_data, aes(x = `Arrival rate variance`, y = `Fulfillment ratio`) ) +
-  geom_boxplot() 
-nuav_gg <- ggplot(regression_data, aes(x = `Number of UAVs`, y = `Fulfillment ratio`) ) +
-  geom_boxplot() 
-plot_grid(solmet_gg, arvar_gg, nuav_gg, ncol = 3, axis = 'l', rel_widths = c(1.4, 1, 1))
+# solmet_gg <- ggplot(regression_data, aes(x = `Solution method`, y = `Fulfillment ratio`) ) +
+#   geom_boxplot() 
+# arvar_gg <- ggplot(regression_data, aes(x = `Arrival rate variance`, y = `Fulfillment ratio`) ) +
+#   geom_boxplot() 
+# nuav_gg <- ggplot(regression_data, aes(x = `Number of UAVs`, y = `Fulfillment ratio`) ) +
+#   geom_boxplot() 
+# plot_grid(solmet_gg, arvar_gg, nuav_gg, ncol = 3, axis = 'l', rel_widths = c(1.4, 1, 1))
 
 ### Statistical tests
 summary(Mean_response_regression)
@@ -61,9 +81,11 @@ print(xtable(summary(Mean_response_regression_TOTK)))
 
 Mean_response_regression_TOTK_ninety <- lm(`90th percentile response` ~  `Solution method` + `Arrival rate variance` + `Number of UAVs` + `Solution method`:`Arrival rate variance`, data = regression_data_TOTK)
 summary(Mean_response_regression_TOTK_ninety)
+print(xtable(summary(Mean_response_regression_TOTK_ninety)))
 
 Mean_response_regression_TOTK_fulfill <- lm(`Fulfillment ratio` ~ `Solution method` + `Arrival rate variance` + `Number of UAVs` + `Solution method`:`Arrival rate variance`, data = regression_data_TOTK)
 summary(Mean_response_regression_TOTK_fulfill)
+print(xtable(summary(Mean_response_regression_TOTK_fulfill)))
 
 #Number of UAVs
 Mean_response_regression_TOTK_UAV <- lm(`Mean response` ~ `Arrival rate variance` + `Number of UAVs`*`Solution method` , data = regression_data_TOTK)
@@ -97,6 +119,26 @@ nuav_gg <- ggplot(regression_data, aes(x = `Number of UAVs`, y = `distance min`)
     labs(y = "")
 plot_grid(solmet_gg, arvar_gg, nuav_gg, ncol = 3, axis = 'l', rel_widths = c(2, 1, 1))
 
+solmet_gg <- ggplot(regression_data, aes(x = `Solution method`, y = `distance 5th percentile`) ) +
+  geom_boxplot() 
+arvar_gg <- ggplot(regression_data, aes(x = `Arrival rate variance`, y = `distance 5th percentile`) ) +
+  geom_boxplot() +
+  labs(y = "")
+nuav_gg <- ggplot(regression_data, aes(x = `Number of UAVs`, y = `distance 5th percentile`) ) +
+  geom_boxplot() +
+  labs(y = "")
+plot_grid(solmet_gg, arvar_gg, nuav_gg, ncol = 3, axis = 'l', rel_widths = c(2, 1, 1))
+
+solmet_gg <- ggplot(regression_data, aes(x = `Solution method`, y = `distance mean`) ) +
+  geom_boxplot() 
+arvar_gg <- ggplot(regression_data, aes(x = `Arrival rate variance`, y = `distance mean`) ) +
+  geom_boxplot() +
+  labs(y = "")
+nuav_gg <- ggplot(regression_data, aes(x = `Number of UAVs`, y = `distance mean`) ) +
+  geom_boxplot() +
+  labs(y = "")
+plot_grid(solmet_gg, arvar_gg, nuav_gg, ncol = 3, axis = 'l', rel_widths = c(2, 1, 1))
+
 perresp_gg <- ggplot(regression_data, aes(x = `Solution method`, y = `distance 5th percentile`) ) +
   geom_boxplot()
 fulrat_gg <- ggplot(regression_data, aes(x = `Solution method`, y = `distance mean`) ) +
@@ -109,15 +151,26 @@ plot_grid(perresp_gg, fulrat_gg, ncol = 2, axis = 'l')
 # Safety measures replace
 min_dist_regression <- lm(`distance min` ~ `Solution method` + `Arrival rate variance` + `Number of UAVs`, data = regression_data)
 fifth_regression <- lm(`distance 5th percentile` ~ `Solution method` + `Arrival rate variance` + `Number of UAVs`, data = regression_data)
+mean_dist_regression <- lm(`distance mean` ~ `Solution method` + `Arrival rate variance` + `Number of UAVs`, data = regression_data)
 
 summary(min_dist_regression)
 print(xtable(summary(min_dist_regression)))
 summary(fifth_regression)
 print(xtable(summary(fifth_regression)))
+summary(mean_dist_regression)
+print(xtable(summary(mean_dist_regression)))
 
-#Interaction between arrival rate variance and some safety measure.
+#Interaction between arrival rate variance and all sol methods for some safety measures.
 min_dist_regression_TOTK <- lm(`distance min` ~ `Arrival rate variance`*`Solution method` + `Number of UAVs`, data = regression_data)
 summary(min_dist_regression_TOTK)
-
 print(xtable(summary(min_dist_regression_TOTK)))
+
+fifth_dist_regression_TOTK <- lm(`distance 5th percentile` ~ `Arrival rate variance`*`Solution method` + `Number of UAVs`, data = regression_data)
+summary(fifth_dist_regression_TOTK)
+print(xtable(summary(fifth_dist_regression_TOTK)))
+
+mean_dist_regression_TOTK <- lm(`distance mean` ~ `Arrival rate variance`*`Solution method` + `Number of UAVs`, data = regression_data)
+summary(mean_dist_regression_TOTK)
+print(xtable(summary(mean_dist_regression_TOTK)))
+
 
