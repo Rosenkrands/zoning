@@ -3,7 +3,6 @@ library(tidyverse)
 solution_results <- readRDS('./solution-results.rds') %>%
   filter(grid_dimension == 8)
 
-
 ## Not using all centroids ##
 readRDS('./no-demand-points.rds') %>%
   filter(`Grid dimension` == 8, `Solution method` %in% c("GA:ARV", "GA:SAFE")) %>%
@@ -159,3 +158,8 @@ lm.fit <- lm(TOT ~ `Solution method`,
              data = lm_data %>% filter(`Arrival rate variance` == "high", `Number of UAVs` == "low"))
 
 summary(lm.fit)
+
+### COMPARISON OF WKM AND KM
+
+# solution_results %>%
+  
