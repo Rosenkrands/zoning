@@ -81,21 +81,21 @@ ggsave('./plots_for_report/comparing_GATOT_KMWCSS_TOT.pdf', width = 9, height = 
 # in the high variance case
 readRDS('./solution-results.rds') %>%
   filter(`Grid dimension` %in% c(8, 15)) %>%
-  filter(`Solution method` %in% c("GA:TOT", "KM:WCSS", "WKM:WWCSS")) %>%
-  filter(Objective %in% c("TOT"), `Arrival rate variance` == "high") %>%
+  filter(`Solution method` %in% c("GA:TOT", "WKM:WWCSS")) %>%
+  filter(Objective %in% c("TOT")) %>%
   mutate(`Solution method` = factor(
     paste0(`Solution method`,":",`Grid dimension`),
-    levels = c("GA:TOT:15", "GA:TOT:8", "WKM:WWCSS:8", "KM:WCSS:8"), labels = c("GA:TOT 15x15 grid", "GA:TOT 8x8 grid", "WKM:WWCSS", "KM:WCSS")
+    levels = c("GA:TOT:15", "GA:TOT:8", "WKM:WWCSS:8"), labels = c("GA:TOT 15x15 grid", "GA:TOT 8x8 grid", "WKM:WWCSS")
   )) %>%
   ggplot(aes(y = `Number of UAVs`, 
              x = `Objective value`,
              fill = `Solution method`)) +
   geom_boxplot() +
-  facet_wrap(~`Arrival rate variance`, scales = "free", nrow = 1, labeller = label_both) +
+  facet_wrap(~`Arrival rate variance`, scales = "free", nrow = 3, labeller = label_both) +
   theme_bw() + labs(x = "TOT Objective") + theme(legend.position = "top") +
-  scale_fill_manual(values = c("#00BA42", "#F8766D", "#00BFC4", "#C77CFF"))
+  scale_fill_manual(values = c("#00BA42", "#F8766D", "#00BFC4"))
 
-ggsave('./plots_for_report/comparing_GATOT_KMWCSS_TOT_high_dimension.pdf', width = 9, height = 4)
+ggsave('./plots_for_report/comparing_GATOT_KMWCSS_TOT_high_dimension.pdf', width = 9, height = 6)
 
 # readRDS('./solution-results.rds') %>%
 #   filter(`Solution method` %in% c("GA:TOT", "KM:WCSS"), `Number of UAVs` == "high") %>%
