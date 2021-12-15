@@ -9,7 +9,7 @@ ggplot(
   geom_text(aes(x,y,label=`Demand point id`), parse=T) +
   geom_path(data = tibble(x = c(-10,10,10,-10,-10), 
                           y = c(-10,-10,10,10,-10)) %>%
-              mutate(across(c(x,y), ~.x*1.1)),
+              mutate(across(c(x,y), ~.x*1.05)),
                aes(x,y)) + 
   theme_void()
 
@@ -25,7 +25,7 @@ ggplot(
   geom_point(aes(x*100,y*100,color = Zone))+
   geom_path(data = tibble(x = c(-10,10,10,-10,-10), 
                           y = c(-10,-10,10,10,-10)) %>%
-              mutate(across(c(x,y), ~.x*1.1)),
+              mutate(across(c(x,y), ~.x*1.05)),
             aes(x,y)) +
   scale_color_manual(values = 2:4, labels = c(parse(text="z[1]"), parse(text="z[2]"), parse(text="z[3]"))) +
   scale_x_continuous(limits=(c(-11,11))) +
@@ -43,7 +43,7 @@ ggplot(
   geom_text(aes(x,y,label=`Demand point id`), parse=T) +
   geom_path(data = tibble(x = c(-10,10,10,-10,-10), 
                           y = c(-10,-10,10,10,-10)) %>%
-              mutate(across(c(x,y), ~.x*1)),
+              mutate(across(c(x,y), ~.x*1.05)),
             aes(x,y)) +
   geom_point(
     data = centroids$locations, aes(x, y), shape = 10, size = 5
@@ -73,7 +73,7 @@ ggplot(
   geom_text(aes(x,y,label=`Demand point id`,color=`Centroid id`), parse=T) +
   geom_path(data = tibble(x = c(-10,10,10,-10,-10), 
                           y = c(-10,-10,10,10,-10)) %>%
-              mutate(across(c(x,y), ~.x*1.1)),
+              mutate(across(c(x,y), ~.x*1.05)),
             aes(x,y)) +
   geom_point(
     data = solution$centroids, 
@@ -98,7 +98,7 @@ ggplot(solution_free$instance %>%
   geom_text(aes(x,y,label=`Demand point id`,color=`Centroid id`), parse=T) +
   geom_path(data = tibble(x = c(-10,10,10,-10,-10), 
                           y = c(-10,-10,10,10,-10)) %>%
-              mutate(across(c(x,y), ~.x*1.1)),
+              mutate(across(c(x,y), ~.x*1.05)),
             aes(x,y)) +
   geom_point(
     data = centroids,
