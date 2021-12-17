@@ -3,16 +3,24 @@ library(tidyverse)
 regression_data <- readRDS("./regression-data.rds") %>%
   filter(`Solution method` %in% c('GA:TOT','WKM:WWCSS'))
 
+summary(lm(`Mean response` ~ `Solution method`*`Arrival rate variance`*`Number of UAVs`, data = regression_data))
+
+regression_data %>%
+  filter(`Number of UAVs` == "low",
+         `Arrival rate variance` == "high") %>%
+  group_by(`Solution method`, `Number of UAVs`, `Arrival rate variance`)
+
 regression_data2 <- regression_data %>%
-  group_by(`Solution method`, `Arrival rate variance`) %>%
+  group_by(`Solution method`, `Arrival rate variance`, `Number of UAVs`) %>%
   summarise(y_se = psych::describe(`Mean response`)$se,
             y_mean = mean(`Mean response`))
 
 regression_data2 %>%
   ggplot(aes(x = `Arrival rate variance`,
              y = y_mean,
-             color = `Solution method`)) +
-  geom_line(aes(group = `Solution method`)) +
+             color = `Solution method`,
+             linetype = `Number of UAVs`)) +
+  geom_line(aes(group = paste0(`Solution method`,`Number of UAVs`))) +
   geom_point() +
   geom_errorbar(aes(ymin = y_mean-1.96*y_se,
                     ymax = y_mean+1.96*y_se),
