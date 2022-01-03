@@ -10,14 +10,14 @@ generate_2d_instance <- function(
   seed = NULL,
   no_of_points = 50, 
   interval = c("min" = -10, "max" = 10),
-  arv = c("min" = 0, "max" = 80)
+  arv = c("min" = 1/80, "max" = 1)
 ) {
   id <- 1:no_of_points
   set.seed(seed)
   x <- runif(no_of_points, min = interval["min"], max = interval["max"])
   y <- runif(no_of_points, min = interval["min"], max = interval["max"])
   set.seed(NULL)
-  arrival_rate <- 1/round(runif(no_of_points, min = arv["min"]*60, max = arv["max"]*60))
+  arrival_rate <- runif(no_of_points, min = arv["min"]*60, max = arv["max"]*60)
   data <- tibble(
     "Demand point id" = as.character(id),
     "x" = x, 
@@ -397,23 +397,24 @@ plot_network <- function(instance, solution, size = T) {
 }
 
 # # # TEST
-# instance = generate_2d_instance(
-#   no_of_points = 100,
-#   interval = c("min" = -10, "max" = 10)
-# )
+instance = generate_2d_instance(
+  no_of_points = 100,
+  interval = c("min" = -10, "max" = 10)
+)
 # 
-# # plot_2d(instance, centroids, solution, type = "point")
+plot_2d(instance, centroids, solution, type = "point")
 # 
-# centroids = grid_centroids(instance, dimension = 5)
+#
+centroids = grid_centroids(instance, dimension = 5)
 # 
 # # plot_2d(instance, centroids, solution, type = "centroid")
 # 
 # solution_ga <- solve_ga(instance, centroids, no_of_centers = 5, obj = "SAFE")
-# solution_km <- solve_wkmeans(instance, no_of_centers = 5)
+solution_km <- solve_kmeans(instance, no_of_centers = 5)
 
-# plot_network(instance, solution = solution_km)
+plot_network(instance, solution = solution_km)
 
 # 
-# plot_2d(instance, centroids, solution, type = "chosen")
+plot_2d(instance, centroids, solution, type = "chosen")
 # plot_2d(instance, centroids, solution, type = "group")
 # plot_2d(instance, centroids, solution, type = "voronoi")
