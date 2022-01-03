@@ -52,7 +52,7 @@ ggplot(
 
 ggsave('plots_for_report/example_instance_centroids.pdf',width = 4, height = 4)
 
-solution <- solve_ga(instance, centroids, no_of_centers = 3, obj = "TOT", miter = 10)
+solution <- solve_ga(instance, centroids, no_of_centers = 3, obj = "TOT", miter = 50)
 
 assignment <- centroids$distances %>%
   inner_join(solution$centroids, by = "Centroid id") %>%
@@ -84,6 +84,26 @@ ggplot(
 
 ggsave('plots_for_report/example_instance_selected_centroids.pdf',width = 4, height = 4)
 
+# ggplot(
+#   instance_w_assignment %>%
+#     mutate(`Demand point id` = paste0("x[",`Demand point id`,"]"))
+# ) +
+#   # geom_segment(data = solution$instance, aes(x = x, y = y, xend = x.centroid, yend = y.centroid),
+#                # color = "gray") +
+#   geom_text(aes(x,y,label=`Demand point id`), parse=T) +
+#   geom_path(data = tibble(x = c(-10,10,10,-10,-10), 
+#                           y = c(-10,-10,10,10,-10)) %>%
+#               mutate(across(c(x,y), ~.x*1.05)),
+#             aes(x,y)) +
+#   geom_point(
+#     data = solution$centroids, 
+#     aes(x, y, color = `Centroid id`), shape = 10, size = 5
+#   ) +
+#   theme_void() +
+#   theme(legend.position = "none")
+# 
+# ggsave('plots_for_report/example_instance_selected_bases.pdf',width = 4, height = 4)
+
 solution_free <- solve_kmeans(instance, no_of_centers = 3)
 
 centroids <- solution_free$instance %>% 
@@ -108,3 +128,73 @@ ggplot(solution_free$instance %>%
   theme(legend.position = "none") 
 
 ggsave('plots_for_report/example_instance_selected_centroids_free.pdf',width = 4, height = 4)
+
+ggplot(solution_free$instance %>%
+         mutate(`Demand point id` = paste0("x[",`Demand point id`,"]"))
+) +
+  # geom_segment(aes(x = x, y = y, xend = x.centroid, yend = y.centroid),
+  #              color = "gray") +
+  geom_text(aes(x,y,label=`Demand point id`,color=`Centroid id`), parse=T) +
+  geom_path(data = tibble(x = c(-10,10,10,-10,-10), 
+                          y = c(-10,-10,10,10,-10)) %>%
+              mutate(across(c(x,y), ~.x*1.05)),
+            aes(x,y)) +
+  geom_point(
+    data = centroids,
+    aes(x.centroid, y.centroid, color=`Centroid id`), shape = 10, size = 5
+  ) +
+  theme_void() +
+  theme(legend.position = "none") 
+
+ggsave('plots_for_report/example_instance_selected_centroids_free_no_path.pdf',width = 4, height = 4)
+
+solution_free$clusters <- solution_free$clusters %>% mutate(`Centroid id` = factor(row_number()))
+
+ggplot(solution_free$instance %>%
+         mutate(`Demand point id` = paste0("x[",`Demand point id`,"]"))
+) +
+  # geom_segment(aes(x = x, y = y, xend = x.centroid, yend = y.centroid),
+  #              color = "gray") +
+  geom_text(aes(x,y,label=`Demand point id`,color=`Centroid id`), parse=T) +
+  geom_path(data = tibble(x = c(-10,10,10,-10,-10), 
+                          y = c(-10,-10,10,10,-10)) %>%
+              mutate(across(c(x,y), ~.x*1.05)),
+            aes(x,y)) +
+  geom_point(
+    data = centroids,
+    aes(x.centroid, y.centroid, color=`Centroid id`), shape = 10, size = 5
+  ) +
+  geom_voronoi(
+    data = solution_free$clusters,
+    aes(x, y, fill = `Centroid id`),
+    alpha = .25,
+    # geom="path",
+    outline = data.frame(
+      x = 1.05*c(-10,-10,10,10),
+      y = 1.05*c(-10,10,10,-10)
+    )
+  ) +
+  theme_void() +
+  theme(legend.position = "none") 
+
+ggsave('plots_for_report/example_instance_selected_centroids_free_voronoi.pdf',width = 4, height = 4)
+
+
+ggplot(solution_free$instance %>%
+         mutate(`Demand point id` = paste0("x[",`Demand point id`,"]"))
+) +
+  # geom_segment(aes(x = x, y = y, xend = x.centroid, yend = y.centroid),
+  #              color = "gray") +
+  geom_text(aes(x,y,label=`Demand point id`), parse=T) +
+  geom_path(data = tibble(x = c(-10,10,10,-10,-10), 
+                          y = c(-10,-10,10,10,-10)) %>%
+              mutate(across(c(x,y), ~.x*1.05)),
+            aes(x,y)) +
+  geom_point(
+    data = centroids,
+    aes(x.centroid, y.centroid, color=`Centroid id`), shape = 10, size = 5
+  ) +
+  theme_void() +
+  theme(legend.position = "none") 
+
+ggsave('plots_for_report/example_instance_selected_bases_free.pdf',width = 4, height = 4)
