@@ -16,6 +16,7 @@ simulation_results %>%
     theme_bw() + labs(x = "Runtime in hours", y = "Average UAV utilization")
 
 ggsave('./plots_for_report/uav_utilization.pdf', width = 9, height = 3)
+ggsave('./plots_for_report/uav_utilization_short.pdf', width = 6, height = 3)
 
 # bind_rows(
 #   sim_result_free$log[1][[1]] %>% mutate(flight = "free"),
