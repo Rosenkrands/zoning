@@ -20,23 +20,88 @@ regression_data <- readRDS("./regression-data.rds") %>%
 # ggplot
 solmet_gg <- ggplot(regression_data, aes(x = `Solution method`, y = `Mean response`) ) +
     geom_boxplot() 
-arvar_gg <- ggplot(regression_data, aes(x = `Arrival rate variance`, y = `Mean response`) ) +
-    geom_boxplot() +
-    labs(y = "")
-nuav_gg <- ggplot(regression_data, aes(x = `Number of UAVs`, y = `Mean response`) ) +
-    geom_boxplot() +
-    labs(y = "")
+
+regression_data2 <- regression_data %>%
+  group_by(`Arrival rate variance`) %>%
+  summarise(y_se = psych::describe(`Mean response`)$se,
+            y_mean = mean(`Mean response`))
+
+arvar_gg <- regression_data2 %>%
+  ggplot(aes(x = `Arrival rate variance`,
+             y = y_mean)) +
+  geom_line(aes(group = 1)) +
+  geom_point() +
+  geom_errorbar(aes(ymin = y_mean-1.96*y_se,
+                    ymax = y_mean+1.96*y_se),
+                width = .1) + labs(y = "")
+
+# arvar_gg <- ggplot(regression_data, aes(x = `Arrival rate variance`, y = `Mean response`) ) +
+#     geom_boxplot() +
+#     labs(y = "")
+
+regression_data2 <- regression_data %>%
+  group_by(`Number of UAVs`) %>%
+  summarise(y_se = psych::describe(`Mean response`)$se,
+            y_mean = mean(`Mean response`))
+
+nuav_gg <- regression_data2 %>%
+  ggplot(aes(x = `Number of UAVs`,
+             y = y_mean)) +
+  geom_line(aes(group = 1)) +
+  geom_point() +
+  geom_errorbar(aes(ymin = y_mean-1.96*y_se,
+                    ymax = y_mean+1.96*y_se),
+                width = .1) + labs(y = "")
+
+# nuav_gg <- ggplot(regression_data, aes(x = `Number of UAVs`, y = `Mean response`) ) +
+#     geom_boxplot() +
+#     labs(y = "")
 plot_grid(solmet_gg, arvar_gg, nuav_gg, ncol = 3, axis = 'l', rel_widths = c(2, 1, 1))  
 
-solmet_gg <- ggplot(regression_data, aes(x = `Solution method`, y = `90th percentile response`) ) +
-  geom_boxplot() 
-arvar_gg <- ggplot(regression_data, aes(x = `Arrival rate variance`, y = `90th percentile response`) ) +
+ggsave('./plots_for_report/Mean_resp_box.pdf', width = 9, height = 3)
+
+solmet_gg <- ggplot(regression_data, aes(x = `Solution method`, y = `distance min`) ) +
   geom_boxplot() +
-  labs(y = "")
-nuav_gg <- ggplot(regression_data, aes(x = `Number of UAVs`, y = `90th percentile response`) ) +
-  geom_boxplot() +
-  labs(y = "")
-plot_grid(solmet_gg, arvar_gg, nuav_gg, ncol = 3, axis = 'l', rel_widths = c(2, 1, 1))  
+  labs(y = "Minimum distance")
+
+regression_data2 <- regression_data %>%
+  group_by(`Arrival rate variance`) %>%
+  summarise(y_se = psych::describe(`distance min`)$se,
+            y_mean = mean(`distance min`))
+
+arvar_gg <- regression_data2 %>%
+  ggplot(aes(x = `Arrival rate variance`,
+             y = y_mean)) +
+  geom_line(aes(group = 1)) +
+  geom_point() +
+  geom_errorbar(aes(ymin = y_mean-1.96*y_se,
+                    ymax = y_mean+1.96*y_se),
+                width = .1) + labs(y = "")
+
+# arvar_gg <- ggplot(regression_data, aes(x = `Arrival rate variance`, y = `90th percentile response`) ) +
+#   geom_boxplot() +
+#   labs(y = "")
+
+regression_data2 <- regression_data %>%
+  group_by(`Number of UAVs`) %>%
+  summarise(y_se = psych::describe(`distance min`)$se,
+            y_mean = mean(`distance min`))
+
+nuav_gg <- regression_data2 %>%
+  ggplot(aes(x = `Number of UAVs`,
+             y = y_mean)) +
+  geom_line(aes(group = 1)) +
+  geom_point() +
+  geom_errorbar(aes(ymin = y_mean-1.96*y_se,
+                    ymax = y_mean+1.96*y_se),
+                width = .1) + labs(y = "")
+
+# nuav_gg <- ggplot(regression_data, aes(x = `Number of UAVs`, y = `90th percentile response`) ) +
+#   geom_boxplot() +
+#   labs(y = "")
+plot_grid(solmet_gg, arvar_gg, nuav_gg, ncol = 3, axis = 'l', rel_widths = c(2, 1, 1)) 
+
+ggsave('./plots_for_report/min_dist_all_box_plot.pdf', width = 9, height = 3)
 
 solmet_gg <- ggplot(regression_data, aes(x = `Solution method`, y = `Fulfillment ratio`) ) +
   geom_boxplot() 

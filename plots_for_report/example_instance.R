@@ -1,6 +1,6 @@
 source("2d-instance.R")
-
-instance <- generate_2d_instance(no_of_points = 10)
+set.seed(1105)
+instance <- generate_2d_instance(no_of_points = 10, seed = 1105)
 
 ggplot(
   instance$data %>%
@@ -18,7 +18,7 @@ ggsave('plots_for_report/example_instance.pdf',width = 4, height = 4)
 ggplot(
   instance$data %>%
     mutate(`Demand point id` = paste0("x[",`Demand point id`,"]"),
-           Zone = as.character(c(1,2,3,1,1,3,3,2,3,3)))
+           Zone = as.character(c(1,2,2,1,3,3,1,1,1,3)))
            # Zone = c("z[1]", "z[2]", "z[3]", "z[1]", "z[1]", "z[3]", "z[3]", "z[2]", "z[3]", "z[3]"))
 ) +
   geom_text(aes(x,y,label=`Demand point id`, color = Zone), parse=T, show.legend=F) +
