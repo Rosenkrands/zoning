@@ -7,7 +7,7 @@ simulation <- function(
   set.seed(110520)
   # Setting parameters for later use
   nReplications = 1
-  LOS = 14400 # Length of simulation
+  LOS = 200 # Length of simulation
   
   nDemands = nrow(solution$instance)
   totaldemandrate = sum(solution$instance$`Arrival rate`)
@@ -25,7 +25,8 @@ simulation <- function(
     agentBaseInfo = data.frame(
       id = c(1:nAgents), 
       X = solution$clusters$x, 
-      Y = solution$clusters$y
+      Y = solution$clusters$y,
+      `Centroid id` = c(1:nAgents)
     )
   }
   
@@ -121,14 +122,16 @@ simulation <- function(
   utilization_list <- list()
   
   for (n in 1:nReplications){
-    # cat(sprintf("Replication = : %s\n", n))
+    cat(sprintf("Replication = : %s\n", n))
     # Initialize an agent list (assume they are at 0,0 at the beginning)
-    agentList = data.frame(id = agentBaseInfo$id, 
+    agentList = data.frame(id = agentBaseInfo$id,
+                           centroid_id = agentBaseInfo$Centroid.id,
                            Xnow = agentBaseInfo$X, 
                            Ynow = agentBaseInfo$Y, 
                            goalX= agentBaseInfo$X, 
                            goalY= agentBaseInfo$Y,
                            demand_id_handling = rep(0, nAgents),
+                           call_id_handling = rep(NA, nAgents), # callid is NA if call have not been in queue
                            tDeployed = rep(0, nAgents),
                            status  = rep("IDLE", nAgents), stringsAsFactors=FALSE)
     
@@ -143,18 +146,20 @@ simulation <- function(
     tNext = round(rexp(1, totaldemandrate)) # Sample next demand arrival time
     demand_id = getDemandpointID(df_demandpoints$prob) # assign demend points based on their demand rates
     eventList <-bind_rows(eventList, data.frame(event = c("Call"), time = c(tNext), demandid = c(demand_id))) # put the first event into the eventlist
-    eventList <-bind_rows(eventList, data.frame(event = c("Move"), time = c(tNext), demandid = c(0))) # put the "move" event into the eventlist
+    eventList <- bind_rows(eventList, data.frame(event = c("Move"), time = c(tNext), demandid = c(0))) # put the "move" event into the eventlist
+    queueList <- data.frame(callid = integer(), demandid = integer(), centroidid = integer(), time = numeric())
     tNow = tNext
+    next_callid = 1
     reset = F # used in relation to excluding the warm up period
     while(nrow(eventList)>0 && tNow <LOS){
       # Extract the current event from the list and remove the event from the list
       eventNow <- eventList[1,]      
       eventList <- eventList[-c(1),]
       tNow = eventNow$time
-      # cat(sprintf("EVENT = : %s\t", eventNow$event), sprintf("Time = : %s\n", tNow))
+      cat(sprintf("EVENT = : %s\t", eventNow$event), sprintf("Time = : %s\n", tNow))
       
       # Exclude the warmup period (i.e. the first hour of the simulation)
-      if ((tNow >= 3600) & (reset == F)) {
+      if ((tNow >= 0) & (reset == F)) {
         demandPerformance = data.frame(nGenerated = rep(0, nDemands), nCovered = rep(0, nDemands), totalResponseTime = rep(0, nDemands))
         agentPerformance = data.frame(nDispatched= rep(0, nAgents), totalUsage= rep(0,nAgents))
         responseTimePerformance = data.frame(demand_id_handling = integer(), responseTime = integer()) 
@@ -164,7 +169,7 @@ simulation <- function(
       switch(as.character(eventNow$event), 
              "Call"={
                # update call performance data
-               demandPerformance$nGenerated[eventNow$demandid] <-  demandPerformance$nGenerated[eventNow$demandid] +1
+               demandPerformance$nGenerated[eventNow$demandid] <- demandPerformance$nGenerated[eventNow$demandid] +1
                # Find the nearest agent
                agent_id = getNearestAgent(eventNow$demandid, agentList)  
                if (agent_id>0){
@@ -175,22 +180,29 @@ simulation <- function(
                  agentList$demand_id_handling[agent_id] <- eventNow$demandid
                  agentList$tDeployed[agent_id] <- tNow
                  agentPerformance$nDispatched[agent_id] <- agentPerformance$nDispatched[agent_id] +1
-                 demandPerformance$nCovered[eventNow$demandid] <-  demandPerformance$nCovered[eventNow$demandid] +1
+                 demandPerformance$nCovered[eventNow$demandid] <- demandPerformance$nCovered[eventNow$demandid] +1
                }
                else{
-                 # No agent is available.
-                 # Assume that this call is discharged in this example. 
+                 # No agent is available add this call to the queue
+                 queueList <- bind_rows(queueList,
+                                        data.frame(callid = next_callid,
+                                                   demandid = eventNow$demandid,
+                                                   centroidid = solution$instance %>% 
+                                                     filter(`Demand point id` == eventNow$demandid) %>%
+                                                     select(`Centroid id`) %>% as.numeric(),
+                                                   time = tNow))
+                 next_callid <- next_callid + 1
                }
                
                # Generate next call
                tNext = tNow + round(rexp(1, totaldemandrate)) 
                demand_id = getDemandpointID(df_demandpoints$prob)
-               eventList <-bind_rows(eventList, data.frame(event = c("Call"), time = c(tNext), demandid = c(demand_id)))
+               eventList <- bind_rows(eventList, data.frame(event = c("Call"), time = c(tNext), demandid = c(demand_id)))
              },
              
              "Move"={
                movingAgents = agentList[(agentList$status == "BUSY" | agentList$status == "BACK"), ]
-               speedAgent=.025 # movement per time unit (kilometers per second)
+               speedAgent=.25 # movement per time unit (kilometers per second)
                # i.e. 25 meter per second is equiv to 90 km/h (25 m/s times 3.6)
                if(nrow(movingAgents)>0){
                  for(i in 1:nrow(movingAgents)){
@@ -210,7 +222,7 @@ simulation <- function(
                      agentList$Xnow[agent_id]  = agentList$goalX[agent_id]
                      agentList$Ynow[agent_id]  = agentList$goalY[agent_id]
                      if (agentList$status[agent_id] == "BUSY"){ # arrived at the demand point
-                       # cat(sprintf("Agent %s\t", agent_id), sprintf(" arrived at demand point %s ", agentList$demand_id_handling[agent_id]), sprintf("at time %s\n", tNow))
+                       cat(sprintf("Agent %s\t", agent_id), sprintf(" arrived at demand point %s ", agentList$demand_id_handling[agent_id]), sprintf("at time %s\n", tNow))
                        # Record demand performance
                        demandPerformance$totalResponseTime[agentList$demand_id_handling[agent_id]] <-  demandPerformance$totalResponseTime[agentList$demand_id_handling[agent_id]]+ (tNow-agentList$tDeployed[agent_id])
                        responseTimePerformance <- bind_rows(
@@ -219,25 +231,54 @@ simulation <- function(
                                     responseTime = tNow-agentList$tDeployed[agent_id])
                        )
                        
-                       
                        # Assign the return trip
                        agentList$status[agent_id] = "BACK"
                        agentList$goalX[agent_id] = agentBaseInfo$X[agent_id]
                        agentList$goalY[agent_id] = agentBaseInfo$Y[agent_id]
                      }
                      else { # Agent returned to its base
-                       # cat(sprintf("Agent %s\t", agent_id), sprintf(" returns its home base at time %s\n", tNow))
+                       cat(sprintf("Agent %s\t", agent_id), sprintf(" returns its home base at time %s\n", tNow))
                        # update agent usage data
-                       agentPerformance$totalUsage[agent_id] <- agentPerformance$totalUsage[agent_id]  + (tNow - agentList$tDeployed[agent_id])
-                       # update agent status
-                       agentList$status[agent_id] = "IDLE"
+                       agentPerformance$totalUsage[agent_id] <- agentPerformance$totalUsage[agent_id] + (tNow - agentList$tDeployed[agent_id])
+                       # check if any call are in queue in the service area of the UAV
+                       if (flight == "zoned") {
+                         cat("Agent id is", agent_id, "\t")
+                         centroidid1 <- agentList$centroid_id[agentList$id == agent_id]
+                         cat("Centroid id is", centroidid1, "\n")
+                         queue_temp <- queueList %>% filter(.data$centroidid == centroidid1)
+                         print(queue_temp)
+                         if (nrow(queue_temp) > 0) {
+                           cat(sprintf("Agent %s\t", agent_id), sprintf(" takes a demand from the queue %s\n", tNow))
+                           # sort the queue by time to ensure FCFS
+                           queue_temp <- queue_temp[order(queue_temp$time), ]
+                           next_in_queue <- queue_temp[1,]
+                           queueList <- queueList[queueList$callid != next_in_queue$callid,]
+                           
+                           agentList$status[agent_id] <- "BUSY"
+                           agentList$goalX[agent_id] <- df_demandpoints$X[next_in_queue$demandid]
+                           agentList$goalY[agent_id] <- df_demandpoints$Y[next_in_queue$demandid]
+                           agentList$demand_id_handling[agent_id] <- next_in_queue$demandid
+                           agentList$call_id_handling <- next_in_queue$callid
+                           agentList$tDeployed[agent_id] <- next_in_queue$time # The time the demand arrived in the system
+                           # For now agentusage is not correct.
+                           #TODO: add another variable to agentList called tCallArrival so response time and agent usage are separately calculated, this would also allow for seperation for the responsetime in the queue versus the agent travel time.s
+                           
+                           agentPerformance$nDispatched[agent_id] <- agentPerformance$nDispatched[agent_id] +1
+                           demandPerformance$nCovered[next_in_queue$demandid] <- demandPerformance$nCovered[next_in_queue$demandid] +1
+                         } else {
+                           agentList$status[agent_id] = "IDLE"
+                         }
+                       } else if (flight == "free") {
+                         stop("Not implemented")
+                       }
+                       
                        # We may add set-up time for a next deployment
                      }
                    }
                  }
                }
                # Generate next "Move" event
-               eventList <-bind_rows(eventList, data.frame(event = c("Move"), time = c(tNow+1), demandid = c(0)))
+               eventList <- bind_rows(eventList, data.frame(event = c("Move"), time = c(tNow+1), demandid = c(0)))
                agentLog <- bind_rows(agentLog, agentList %>% mutate(time = tNow))
              },
              {
@@ -336,19 +377,49 @@ simulation <- function(
 }
 
 # TEST
-# instance = generate_2d_instance(
-#   no_of_points = 100,
-#   interval = c("min" = -10, "max" = 10)
-# )
+instance = generate_2d_instance(
+  no_of_points = 10,
+  interval = c("min" = -10, "max" = 10)
+)
 
 # centroids = grid_centroids(instance, dimension = 4)
 
 # solution = solve_ga(instance, centroids, miter = 5)
-# solution = solve_kmeans(instance, no_of_centers = 5)
+solution = solve_kmeans(instance, no_of_centers = 2)
 
 # sim_result <- simulation(solution = solution, method = "GA")
-# sim_result_zoned <- simulation(solution = solution,
-#                          method = "KMeans", flight = "zoned")
+sim_result_zoned <- simulation(solution = solution,
+                         method = "KMeans", flight = "zoned",
+                         log = T)
+
+# ANIMATION
+base_plot <- plot_network(instance = instance, solution = solution) +
+  theme(legend.position = "none")
+
+agentLog = sim_result_zoned$log[[1]]
+
+animate_log <- function() {
+  for (i in -1:max(agentLog$time)) {
+    cat(i, '\r')
+    df_temp = agentLog %>%
+      filter(time == i) %>%
+      left_join(agentBaseInfo, by = "id")
+    print(
+      base_plot +
+        geom_point(data = df_temp, aes(Xnow, Ynow)) + #, color=Centroid.id), shape = 8, size = 4) +
+        annotate("text", x = -9.5, y = 10, label = paste0("Time = ", i))
+    )
+  }
+}
+
+animation::saveGIF(
+  animate_log(),
+  interval = 0.05,
+  outdir = getwd(),
+  ani.width = 480,
+  ani.height = 480
+)
+
 # system.time({
 #   sim_result_free <- simulation(solution = solution,
 #                                 method = "KMeans", flight = "free")
