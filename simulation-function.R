@@ -7,7 +7,7 @@ simulation <- function(
   set.seed(110520)
   # Setting parameters for later use
   nReplications = 1
-  LOS = 200 # Length of simulation
+  LOS = 14400 # Length of simulation
   
   nDemands = nrow(solution$instance)
   totaldemandrate = sum(solution$instance$`Arrival rate`)
@@ -111,6 +111,47 @@ simulation <- function(
         return(0)
       }
     }
+    
+    # Precalculate distance from agents to demand points to determine service area
+    agent_dist <- function(id=c("p_id"=-1,"a_id"-1)){
+      distance <- euclid_norm(
+        c(
+          pull(instance$data[id[1,"p_id"], "x"] - locations[id[1,"a_id"], "x"]),
+          pull(instance$data[id[1,"p_id"], "y"] - locations[id[1,"a_id"], "y"])
+        ) 
+      )
+      return(
+        tibble(
+          `Demand point id` = id[1,"p_id"],
+          `Centroid id` = id[1,"a_id"],
+          `Distance` = distance
+        )
+      )
+    }
+    
+    locations <- solution$instance %>% 
+      select(`Centroid id`, x = x.centroid, y = y.centroid) %>%
+      distinct() %>%
+      arrange(`Centroid id`)
+    
+    # Find all possible combinations of demand points and centroids
+    arg_df <- expand.grid(
+      solution$instance$`Demand point id`,
+      locations$`Centroid id`
+    ) %>%
+      rename(p_id = Var1, a_id = Var2) %>%
+      mutate(p_id = as.character(p_id), a_id = as.character(a_id))
+    
+    # Convert dataframe to list
+    arg_list <- split(arg_df,1:nrow(arg_df))
+    
+    # Calculate distances
+    result_list <- lapply(arg_list,agent_dist)
+    distances <<- do.call(rbind,result_list)
+    print(as.data.frame(distances))
+    
+    # Filter to determine service area per `Centroid id`
+    service_area <<- distances %>% filter(Distance < max_dist)
   }
   
   # For now
@@ -159,7 +200,7 @@ simulation <- function(
       cat(sprintf("EVENT = : %s\t", eventNow$event), sprintf("Time = : %s\n", tNow))
       
       # Exclude the warmup period (i.e. the first hour of the simulation)
-      if ((tNow >= 0) & (reset == F)) {
+      if ((tNow >= 3600) & (reset == F)) {
         demandPerformance = data.frame(nGenerated = rep(0, nDemands), nCovered = rep(0, nDemands), totalResponseTime = rep(0, nDemands))
         agentPerformance = data.frame(nDispatched= rep(0, nAgents), totalUsage= rep(0,nAgents))
         responseTimePerformance = data.frame(demand_id_handling = integer(), responseTime = integer()) 
@@ -202,7 +243,7 @@ simulation <- function(
              
              "Move"={
                movingAgents = agentList[(agentList$status == "BUSY" | agentList$status == "BACK"), ]
-               speedAgent=.25 # movement per time unit (kilometers per second)
+               speedAgent=.025 # movement per time unit (kilometers per second)
                # i.e. 25 meter per second is equiv to 90 km/h (25 m/s times 3.6)
                if(nrow(movingAgents)>0){
                  for(i in 1:nrow(movingAgents)){
@@ -269,7 +310,33 @@ simulation <- function(
                            agentList$status[agent_id] = "IDLE"
                          }
                        } else if (flight == "free") {
-                         stop("Not implemented")
+                         centroidid1 <- agentList$centroid_id[agentList$id == agent_id]
+                         queue_temp <- queueList %>% 
+                           filter(
+                             .data$demandid %in% (service_area %>% filter(`Centroid id` == centroidid1))$`Demand point id`
+                           )
+                         print(queue_temp %>% mutate(demandid = as.character(demandid)) %>% left_join(service_area, by = c("demandid" = "Demand point id")))
+                         if (nrow(queue_temp) > 0) {
+                           cat(sprintf("Agent %s\t", agent_id), sprintf(" takes a demand from the queue %s\n", tNow))
+                           # sort the queue by time to ensure FCFS
+                           queue_temp <- queue_temp[order(queue_temp$time), ]
+                           next_in_queue <- queue_temp[1,]
+                           queueList <- queueList[queueList$callid != next_in_queue$callid,]
+                           
+                           agentList$status[agent_id] <- "BUSY"
+                           agentList$goalX[agent_id] <- df_demandpoints$X[next_in_queue$demandid]
+                           agentList$goalY[agent_id] <- df_demandpoints$Y[next_in_queue$demandid]
+                           agentList$demand_id_handling[agent_id] <- next_in_queue$demandid
+                           agentList$call_id_handling <- next_in_queue$callid
+                           agentList$tDeployed[agent_id] <- next_in_queue$time # The time the demand arrived in the system
+                           # For now agentusage is not correct.
+                           #TODO: add another variable to agentList called tCallArrival so response time and agent usage are separately calculated, this would also allow for seperation for the responsetime in the queue versus the agent travel time.s
+                           
+                           agentPerformance$nDispatched[agent_id] <- agentPerformance$nDispatched[agent_id] +1
+                           demandPerformance$nCovered[next_in_queue$demandid] <- demandPerformance$nCovered[next_in_queue$demandid] +1
+                         } else {
+                           agentList$status[agent_id] = "IDLE"
+                         }
                        }
                        
                        # We may add set-up time for a next deployment
@@ -376,49 +443,59 @@ simulation <- function(
   }
 }
 
-# TEST
-instance = generate_2d_instance(
-  no_of_points = 10,
-  interval = c("min" = -10, "max" = 10)
-)
-
-# centroids = grid_centroids(instance, dimension = 4)
-
-# solution = solve_ga(instance, centroids, miter = 5)
-solution = solve_kmeans(instance, no_of_centers = 2)
-
-# sim_result <- simulation(solution = solution, method = "GA")
-sim_result_zoned <- simulation(solution = solution,
-                         method = "KMeans", flight = "zoned",
-                         log = T)
-
-# ANIMATION
-base_plot <- plot_network(instance = instance, solution = solution) +
-  theme(legend.position = "none")
-
-agentLog = sim_result_zoned$log[[1]]
-
-animate_log <- function() {
-  for (i in -1:max(agentLog$time)) {
-    cat(i, '\r')
-    df_temp = agentLog %>%
-      filter(time == i) %>%
-      left_join(agentBaseInfo, by = "id")
-    print(
-      base_plot +
-        geom_point(data = df_temp, aes(Xnow, Ynow)) + #, color=Centroid.id), shape = 8, size = 4) +
-        annotate("text", x = -9.5, y = 10, label = paste0("Time = ", i))
-    )
-  }
-}
-
-animation::saveGIF(
-  animate_log(),
-  interval = 0.05,
-  outdir = getwd(),
-  ani.width = 480,
-  ani.height = 480
-)
+# # TEST
+# instance = generate_2d_instance(
+#   no_of_points = 20,
+#   interval = c("min" = -10, "max" = 10)
+# )
+# 
+# # centroids = grid_centroids(instance, dimension = 4)
+# 
+# # solution = solve_ga(instance, centroids, miter = 5)
+# solution = solve_kmeans(instance, no_of_centers = 3)
+# 
+# # sim_result <- simulation(solution = solution, method = "GA")
+# sim_result <- simulation(solution = solution,
+#                          method = "KMeans", flight = "free",
+#                          log = T, max_dist = 9)
+# 
+# # ANIMATION
+# base_plot <- plot_network(instance = instance, solution = solution) +
+#     geom_text(data = solution$instance, aes(x, y, label = `Demand point id`)) +
+#   ggforce::geom_circle(
+#     data = solution$instance %>%
+#       select(`Centroid id`, x = x.centroid, y = y.centroid) %>%
+#       distinct() %>%
+#       mutate(r = 9),
+#     aes(x0 = x, y0 = y, r = r, fill = `Centroid id`),
+#     alpha = .1, color = "grey"
+#   ) +
+#   # theme(legend.position = "none") +
+#   coord_fixed()
+# 
+# agentLog = sim_result$log[[1]]
+# 
+# animate_log <- function() {
+#   for (i in -1:max(agentLog$time)) {
+#     cat(i, '\r')
+#     df_temp = agentLog %>%
+#       filter(time == i) %>%
+#       left_join(agentBaseInfo, by = "id")
+#     print(
+#       base_plot +
+#         geom_point(data = df_temp, aes(Xnow, Ynow)) + #, color=Centroid.id), shape = 8, size = 4) +
+#         annotate("text", x = -9.5, y = 10, label = paste0("Time = ", i))
+#     )
+#   }
+# }
+# 
+# animation::saveGIF(
+#   animate_log(),
+#   interval = 0.05,
+#   outdir = getwd(),
+#   ani.width = 480,
+#   ani.height = 480
+# )
 
 # system.time({
 #   sim_result_free <- simulation(solution = solution,
