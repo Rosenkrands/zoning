@@ -11,14 +11,16 @@ result <- do.call(
   pbapply::pblapply(sol_files %>% as.list(), calc_obj2)
 )
 
-result_filtered <- result #%>% filter(grid_dimension != 8)
+result_filtered <- result %>%
+  filter(method == 'GA', obj == "TOT", ar_var %in% c(20,50,80), no_of_centers %in% c(5,10,15),
+         grid_dimension == 8)
 
 # Load the solutions into a list, with method specified
 solutions <- pbapply::pblapply(
-  result$file %>% split(1:nrow(result)),
+  result_filtered$file %>% split(1:nrow(result_filtered)),
   function(file) readRDS(paste0('./solution_for_simulation/',file))
 )
-names(solutions) <- str_c("sim_", result$file)
+names(solutions) <- str_c("sim_", result_filtered$file)
 
 # Perform simulation for solutions, in parallel
 run_simulation <- function(i) {

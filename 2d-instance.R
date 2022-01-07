@@ -399,24 +399,24 @@ plot_network <- function(instance, solution, size = T) {
 }
 
 # # # TEST
-instance = generate_2d_instance(
-  no_of_points = 100,
-  interval = c("min" = -10, "max" = 10)
-)
+# instance = generate_2d_instance(
+#   no_of_points = 100,
+#   interval = c("min" = -10, "max" = 10)
+# )
+# # 
+# plot_2d(instance, centroids, solution, type = "point")
+# # 
+# #
+# centroids = grid_centroids(instance, dimension = 5)
+# # 
+# # # plot_2d(instance, centroids, solution, type = "centroid")
+# # 
+# # solution_ga <- solve_ga(instance, centroids, no_of_centers = 5, obj = "SAFE")
+# solution_km <- solve_kmeans(instance, no_of_centers = 5)
 # 
-plot_2d(instance, centroids, solution, type = "point")
+# plot_network(instance, solution = solution_km)
 # 
-#
-centroids = grid_centroids(instance, dimension = 5)
-# 
-# # plot_2d(instance, centroids, solution, type = "centroid")
-# 
-# solution_ga <- solve_ga(instance, centroids, no_of_centers = 5, obj = "SAFE")
-solution_km <- solve_kmeans(instance, no_of_centers = 5)
-
-plot_network(instance, solution = solution_km)
-
-# 
-plot_2d(instance, centroids, solution, type = "chosen")
+# # 
+# plot_2d(instance, centroids, solution, type = "chosen")
 # plot_2d(instance, centroids, solution, type = "group")
 # plot_2d(instance, centroids, solution, type = "voronoi")

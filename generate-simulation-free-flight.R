@@ -64,12 +64,15 @@ run_simulation <- function(param) {
   saveRDS(rslt, file = file)
 }
 
+
+# pbapply::pblapply(params_list,run_simulation)
+
 system.time({
 # set up of parallel computation
 num_cores <- detectCores(logical = F)
 cl <- makeCluster(num_cores)
 
-parallel::clusterExport(cl, c('solutions', 'simulation'))
+parallel::clusterExport(cl, c('solutions', 'simulation', 'euclid_norm'))
 invisible(parallel::clusterEvalQ(cl, {library(dplyr); library(tidyr)}))
 
 pbapply::pblapply(
@@ -78,12 +81,12 @@ pbapply::pblapply(
   cl = cl
 )
 })
-
+# 
 ### ANALYZING THE RESULTS ###
 sol_files <- list.files('./solution_for_simulation')
 
 result <- do.call(
-  bind_rows, 
+  bind_rows,
   pbapply::pblapply(sol_files %>% as.list(), calc_obj2)
 )
 
@@ -96,7 +99,7 @@ result_filtered <- result_filtered %>% mutate(
   `Number of UAVs` = factor(as.numeric(no_of_centers),
                             levels = c(5, 10, 15),
                             labels = c("low", "medium", "high")),
-  `Arrival rate variance` = factor(ar_var, 
+  `Arrival rate variance` = factor(ar_var,
                                    levels = c(20,50,80),
                                    labels = c("low", "medium", "high")),
 ) %>%
@@ -112,7 +115,7 @@ sim_result <- pbapply::pblapply(
 )
 names(sim_result) <- sim_files
 
-result_table <- as_tibble(sim_result) %>% 
+result_table <- as_tibble(sim_result) %>%
   mutate(type = c("metric", "utilization")) %>%
   pivot_longer(cols = -c(type), names_to = "file") %>%
   pivot_wider(id_cols = c(type, file), names_from = type)
@@ -155,20 +158,42 @@ regression_data <- inner_join(
   inner_join(distance_metrics,
              by = c("instance", "Solution method", "Arrival rate variance", "Number of UAVs", "Flight config"))
 
+### Temporary plot without zoning, real plot is made in ./plots_for_report/free-flight_distance_constraint.R
+
+ff_plot_data <- regression_data %>%
+  group_by(`Solution method`, `Arrival rate variance`, `Number of UAVs`, `Flight config`) %>%
+  summarise(across(c(`Mean response`, `90th percentile response`, `Fulfillment ratio`), mean)) %>%
+  mutate(`Flight configuration` = factor(
+    `Flight config`,
+    levels = c("0", ".2", ".5", "No constraint"),
+    labels = c("Scaling factor: 0", "Scaling factor: 0.2", "Scaling factor: 0.5", "No distance constraint")
+  )
+  )
+
+ff_plot_data %>%
+  pivot_longer(cols = c(`Mean response`, `Fulfillment ratio`), names_to = "Measure") %>%
+  mutate(Measure = factor(Measure, levels = c("Mean response", "Fulfillment ratio"))) %>%
+  ggplot(aes(x = `Arrival rate variance`, y = value, fill = `Flight configuration`)) +
+  geom_col(position = position_dodge(), color = "black") +
+  facet_grid(Measure~`Number of UAVs`, scales = "free", labeller = label_both) +
+  theme_bw() + labs(y="")
+
 # OUR PICK FOR FREE FLIGHT FLIGHT CONFIG IS 0
 saveRDS(
-  regression_data %>% 
-    filter(`Flight config` == "0") %>% 
+  regression_data %>%
+    filter(`Flight config` == "0") %>%
     select(-`Flight config`) %>%
     mutate(`Solution method` = "Free-flight"),
   './free-flight-data.rds'
 )
 
-regression_data_zoned <- readRDS("./regression-data.rds") %>% 
+regression_data_zoned <- readRDS("./regression-data.rds") %>%
   filter(`Solution method` == "GA:TOT",
          `Arrival rate variance` %in% c("low", "medium", "high"),
          `Number of UAVs` %in% c("low", "medium", "high")) %>%
   mutate(`Flight config` = "Zoned")
+
+# regression_data <- readRDS('./free-flight-data.rds')
 
 plot_data <- bind_rows(regression_data, regression_data_zoned) %>%
   mutate(`Flight config` = factor(`Flight config`, levels = c("Zoned", "0", ".2", ".5", "1", "No constraint"))) %>%
@@ -193,7 +218,7 @@ plot_data %>%
   facet_wrap(~`Number of UAVs`, labeller = label_both)
 
 # plot_data %>%
-#   filter(`Number of UAVs` %in% c("medium", "high"), 
+#   filter(`Number of UAVs` %in% c("medium", "high"),
 #          `Arrival rate variance` == c("low", "medium"),
 #          `Flight config` %in% c("Zoned", "0", ".2")) %>%
 #   pivot_longer(cols = c(`Mean response`, `90th percentile response`, `Fulfillment ratio`)) %>%
@@ -203,19 +228,19 @@ plot_data %>%
 ## OLD
 # Join the simulation results on the file version
 
-# result_table_max <- as_tibble(sim_result[1:40]) %>% 
+# result_table_max <- as_tibble(sim_result[1:40]) %>%
 #   mutate(type = c("metric", "utilization")) %>%
 #   pivot_longer(cols = -c(type), names_to = "file") %>%
 #   pivot_wider(id_cols = c(type, file), names_from = type)
-# 
-# result_table_no <- as_tibble(sim_result[41:80]) %>% 
+#
+# result_table_no <- as_tibble(sim_result[41:80]) %>%
 #   mutate(type = c("metric", "utilization")) %>%
 #   pivot_longer(cols = -c(type), names_to = "file") %>%
 #   pivot_wider(id_cols = c(type, file), names_from = type)
-# 
+#
 # simulation_result_max <- result %>% inner_join(result_table_max, by = "file")
 # simulation_result_no <- result %>% inner_join(result_table_no, by = "file")
-# 
+#
 # response_time_metrics_max <- simulation_result_max %>%
 #   select(`Solution method`, `Arrival rate variance`, `Number of UAVs`, metric) %>%
 #   mutate(responseTime = map(metric, ~.x[[1]]$responseTimePerformance)) %>%
@@ -224,14 +249,14 @@ plot_data %>%
 #   summarise(`Mean response` = mean(responseTime),
 #             #`Median response` = median(responseTime),
 #             `90th percentile response` = quantile(responseTime, probs = c(.9)))
-# 
+#
 # fulfillment_metrics_max <- simulation_result_max %>%
 #   select(`Solution method`, `Arrival rate variance`, `Number of UAVs`, metric) %>%
 #   mutate(demandPerformance = map(metric, ~.x[[1]]$demandPerformance)) %>%
 #   unnest(cols = demandPerformance) %>%
 #   group_by(`Solution method`, `Arrival rate variance`, `Number of UAVs`) %>%
 #   summarise(`Fulfillment ratio` = mean(nCovered/nGenerated, na.rm = TRUE))
-# 
+#
 # response_time_metrics_no <- simulation_result_no %>%
 #   select(`Solution method`, `Arrival rate variance`, `Number of UAVs`, metric) %>%
 #   mutate(responseTime = map(metric, ~.x[[1]]$responseTimePerformance)) %>%
@@ -240,51 +265,51 @@ plot_data %>%
 #   summarise(`Mean response` = mean(responseTime),
 #             #`Median response` = median(responseTime),
 #             `90th percentile response` = quantile(responseTime, probs = c(.9)))
-# 
+#
 # fulfillment_metrics_no <- simulation_result_no %>%
 #   select(`Solution method`, `Arrival rate variance`, `Number of UAVs`, metric) %>%
 #   mutate(demandPerformance = map(metric, ~.x[[1]]$demandPerformance)) %>%
 #   unnest(cols = demandPerformance) %>%
 #   group_by(`Solution method`, `Arrival rate variance`, `Number of UAVs`) %>%
 #   summarise(`Fulfillment ratio` = mean(nCovered/nGenerated, na.rm = TRUE))
-# 
+#
 # regression_data_max <- inner_join(
 #   response_time_metrics_max, fulfillment_metrics_max,
 #   by = c("Solution method", "Arrival rate variance", "Number of UAVs")
 # )
-# 
+#
 # regression_data_no <- inner_join(
 #     response_time_metrics_no, fulfillment_metrics_no,
 #     by = c("Solution method", "Arrival rate variance", "Number of UAVs")
 #   )
-# 
-# 
+#
+#
 # regression_data_zoned <- regression_data %>% filter(`Solution method` == "KM:WCSS",
 #                            `Arrival rate variance` %in% c("low", "high"),
 #                            `Number of UAVs` %in% c("low", "high"))
-# 
+#
 # plot_data <- bind_rows(
 #   regression_data_max %>% mutate(range_constraint = "max"),
 #   regression_data_no %>% mutate(range_constraint = "no"),
 #   regression_data_zoned %>% mutate(range_constraint = "zoned")
 # ) %>%
-#   mutate(range_constraint = factor(range_constraint, 
+#   mutate(range_constraint = factor(range_constraint,
 #                                    levels = c("no", "max", "zoned"),
 #                                    labels = c("free-flight no limit", "free-flight limit", "zoned")))
-# 
+#
 # plot_data %>%
 #   ggplot(aes(x = `Arrival rate variance`, y = `Mean response`, fill = range_constraint)) +
 #   geom_col(position = position_dodge()) +
 #   facet_wrap(~`Number of UAVs`, labeller = label_both)
-# 
+#
 # plot_data %>%
 #   ggplot(aes(x = `Arrival rate variance`, y = `90th percentile response`, fill = range_constraint)) +
 #   geom_col(position = position_dodge()) +
 #   facet_wrap(~`Number of UAVs`, labeller = label_both)
-# 
+#
 # plot_data %>%
 #   ggplot(aes(x = `Arrival rate variance`, y = `Fulfillment ratio`, fill = range_constraint)) +
 #   geom_col(position = position_dodge()) +
 #   facet_wrap(~`Number of UAVs`, labeller = label_both)
-# 
+#
 # plot_data %>% filter(range_constraint %in% c("max", "zoned"))

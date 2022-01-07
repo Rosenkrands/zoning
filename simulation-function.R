@@ -116,8 +116,8 @@ simulation <- function(
     agent_dist <- function(id=c("p_id"=-1,"a_id"-1)){
       distance <- euclid_norm(
         c(
-          pull(instance$data[id[1,"p_id"], "x"] - locations[id[1,"a_id"], "x"]),
-          pull(instance$data[id[1,"p_id"], "y"] - locations[id[1,"a_id"], "y"])
+          pull(solution$instance[id[1,"p_id"], "x"] - locations[id[1,"a_id"], "x"]),
+          pull(solution$instance[id[1,"p_id"], "y"] - locations[id[1,"a_id"], "y"])
         ) 
       )
       return(
@@ -200,12 +200,26 @@ simulation <- function(
       cat(sprintf("EVENT = : %s\t", eventNow$event), sprintf("Time = : %s\n", tNow))
       
       # Exclude the warmup period (i.e. the first hour of the simulation)
-      if ((tNow >= 3600) & (reset == F)) {
-        demandPerformance = data.frame(nGenerated = rep(0, nDemands), nCovered = rep(0, nDemands), totalResponseTime = rep(0, nDemands))
-        agentPerformance = data.frame(nDispatched= rep(0, nAgents), totalUsage= rep(0,nAgents))
-        responseTimePerformance = data.frame(demand_id_handling = integer(), responseTime = integer()) 
-        reset = T
-      }
+      # if ((tNow >= 3600) & (reset == F)) {
+      #   demandPerformance = data.frame(nGenerated = rep(0, nDemands), nCovered = rep(0, nDemands), totalResponseTime = rep(0, nDemands))
+      #   
+      #   ## Update nGenerated to count the demands already in the queue
+      #   
+      #   calls_in_queue <- queueList %>% 
+      #     group_by(demandid) %>% 
+      #     summarise(nGenerated = n())
+      #   
+      #   demandPerformance <- demandPerformance %>%
+      #     mutate(demandid = row_number()) %>%
+      #     select(-nGenerated) %>%
+      #     left_join(calls_in_queue, by = c("demandid")) %>%
+      #     select(nGenerated, nCovered, totalResponseTime) %>%
+      #     mutate(nGenerated = replace_na(nGenerated, 0))
+      #   
+      #   agentPerformance = data.frame(nDispatched= rep(0, nAgents), totalUsage= rep(0,nAgents))
+      #   responseTimePerformance = data.frame(demand_id_handling = integer(), responseTime = integer()) 
+      #   reset = T
+      # }
       
       switch(as.character(eventNow$event), 
              "Call"={
