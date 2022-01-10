@@ -1,0 +1,79 @@
+---
+title: "Tuning WKM"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+source('2d-instance.R')
+```
+
+## Generating the instance
+
+Here we generate an instance to test on.
+
+```{r}
+set.seed(123)
+# instance <- generate_2d_instance(no_of_points = 10)
+
+instance <- tibble(
+  `Demand point id` = seq(1,4),
+  x = c(0,0,50,50),
+  y = c(1,2,1,2),
+  `Arrival rate` = c(0.001, 0.01, 0.001, 0.01)
+)
+
+ggplot(instance) +
+  geom_point(aes(x,y, size = `Arrival rate`))
+```
+
+## Generate a WKM solution
+
+Run the wkmeans algorithm
+
+```{r}
+no_of_centers = 2
+coordinates <- instance 
+  
+wkmeans <- flexclust::stepFlexclust(x = instance %>% select(x,y), k = no_of_centers, nrep = 1,
+                                    weights = instance$`Arrival rate`, FUN = "cclust",
+                                    save.data = TRUE,
+                                    dist = "euclidean", verbose = F,
+                                    method = "hardcl", 
+                                    control = list(
+                                      iter.max = 1,
+                                      gamma = 1,
+                                      tolerance = 10,
+                                      verbose = 0,
+                                      method = "polynomial",
+                                      pol.rate = 0.0001
+                                    ))
+
+wkmeans@converged
+```
+
+## Plot the result
+
+```{r}
+clusters <- as.data.frame(wkmeans@centers)
+clustering_vector <- wkmeans@cluster
+
+instance <- instance %>% 
+  mutate("Centroid id" = clustering_vector %>% as.character()) %>%
+  left_join(
+    tibble(clusters) %>% mutate(`Centroid id` = row_number() %>% as.character()), 
+    by =c("Centroid id"), suffix = c("",".centroid")
+  )
+
+centroids <- instance %>%
+  select(`Centroid id`, x.centroid, y.centroid)
+
+ggplot(instance) +
+      geom_segment(aes(x = x, y = y, xend = x.centroid, yend = y.centroid),
+                   color = "gray") +
+      geom_point(aes(x,y, color = `Centroid id`, size = `Arrival rate`)) +
+      geom_point(
+        data = centroids, 
+        aes(x.centroid, y.centroid), shape = 10, size = 5
+      )
+```
