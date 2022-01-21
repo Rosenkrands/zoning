@@ -34,29 +34,35 @@ Run the wkmeans algorithm
 ```{r}
 no_of_centers = 2
 coordinates <- instance 
-  
-wkmeans <- flexclust::stepFlexclust(x = instance %>% select(x,y), k = no_of_centers, nrep = 1,
-                                    weights = instance$`Arrival rate`, FUN = "cclust",
-                                    save.data = TRUE,
-                                    dist = "euclidean", verbose = F,
-                                    method = "hardcl", 
-                                    control = list(
-                                      iter.max = 1000,
-                                      gamma = 1,
-                                      tolerance = 10,
-                                      verbose = 0,
-                                      method = "polynomial",
-                                      pol.rate = 1
-                                    ))
 
-wkmeans@converged
+wkmeans <- SWKM::kmeans.weight(
+  x = instance %>% select(x,y) %>% data.matrix(),
+  K = no_of_centers,
+  weight = instance$`Arrival rate`
+)
+  
+# wkmeans <- flexclust::stepFlexclust(x = instance %>% select(x,y), k = no_of_centers, nrep = 1,
+#                                     weights = instance$`Arrival rate`, FUN = "cclust",
+#                                     save.data = TRUE,
+#                                     dist = "euclidean", verbose = F,
+#                                     method = "hardcl",
+#                                     control = list(
+#                                       iter.max = 1000,
+#                                       gamma = 1,
+#                                       tolerance = 10,
+#                                       verbose = 0,
+#                                       method = "polynomial",
+#                                       pol.rate = 1
+#                                     ))
+# 
+# wkmeans@converged
 ```
 
 ## Plot the result
 
 ```{r}
-clusters <- as.data.frame(wkmeans@centers)
-clustering_vector <- wkmeans@cluster
+clusters <- as.data.frame(wkmeans$centers) %>% rename(x = V1, y = V2)
+clustering_vector <- wkmeans$cluster
 
 instance <- instance %>% 
   mutate("Centroid id" = clustering_vector %>% as.character()) %>%
