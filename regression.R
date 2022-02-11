@@ -5,6 +5,14 @@ library(xtable)
 regression_data <- readRDS("./regression-data.rds") %>%
     filter(`Solution method` != 'KM:WCSS')
 
+# Comparison between queue and no queue
+regression_data_TOT <- regression_data %>% 
+  filter(`Solution method` == 'GA:TOT') %>%
+  mutate(queue = 0)
+  
+ggplot(regression_data_TOT, aes(x = queue, y = `Mean response`)) +
+  geom_boxplot()
+
 ### Regressions
 # Response time
 # Mean_response_regression <- lm(`Mean response` ~ `Solution method` + `Arrival rate variance` + `Number of UAVs`, data = regression_data)
@@ -140,7 +148,7 @@ print(xtable(summary(Fulfillment_ration_regression)))
 # Compare TOT and Kmeans
 
 regression_data_TOTK <-  regression_data %>% filter(`Solution method` %in% c('GA:TOT', 'WKM:WWCSS'))
-Mean_response_regression_TOTK <- lm(`Mean response` ~ `Solution method` + `Arrival rate variance` + `Number of UAVs` + `Solution method`:`Arrival rate variance`, data = regression_data_TOTK)
+Mean_response_regression_TOTK <- lm(`Mean response` ~ `Solution method` + `Arrival rate variance` + `Number of UAVs` + `Solution method`:`Arrival rate variance`:`Number of UAVs`, data = regression_data_TOTK)
 summary(Mean_response_regression_TOTK)
 print(xtable(summary(Mean_response_regression_TOTK)))
 
